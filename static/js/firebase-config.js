@@ -29,7 +29,7 @@ export const FIREBASE_CONFIGS = {
 // Initialize Firebase app for specific project
 export async function initFirebase(projectType = 'handover') {
   const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-  const { getDatabase, ref, onValue, push, set, remove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const { getDatabase, ref, onValue, push, set, remove, get, goOffline, goOnline } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
 
   const config = FIREBASE_CONFIGS[projectType];
   if (!config) {
@@ -40,14 +40,22 @@ export async function initFirebase(projectType = 'handover') {
   const app = getApps().length ? getApps()[0] : initializeApp(config);
   const database = getDatabase(app);
 
+  // Expose databaseURL to window for compatibility with existing RTDB helper functions
+  window.__firebaseDB = window.__firebaseDB || {};
+  window.__firebaseDB.databaseURL = config.databaseURL;
+
   return {
     app,
+    db: database,  // alias for compatibility
     database,
     databaseURL: config.databaseURL,
     ref,
     onValue,
     push,
     set,
-    remove
+    remove,
+    get,
+    goOffline,
+    goOnline
   };
 }

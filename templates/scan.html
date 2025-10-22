@@ -238,7 +238,14 @@
   (async () => {
     try {
       const soundModule = await import('../static/js/sound-system.js');
-      await soundModule.initSounds();
+      const STATIC_AUDIO_URLS = {
+        "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
+        "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
+        "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
+        "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
+        "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
+      };
+      await soundModule.initSounds(STATIC_AUDIO_URLS);
       playOk = soundModule.playOk;
       playErr = soundModule.playErr;
       playCancel = soundModule.playCancel;
