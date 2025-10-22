@@ -40,10 +40,6 @@
     <button id="btnReset" class="btn-action">Reset</button>
   </div>
 
-<!-- Inline style removed; using static/css/main.css -->
-
-
-
 <!-- ===== Dual Tables: Cancel (left) & Scan (right) ===== -->
 <div id="tablesWrap">
   <!-- CANCEL TABLE (bên trái) -->
@@ -109,29 +105,13 @@
 
 <!-- ===== Firebase SDKs ===== -->
 <script type="module">
-  // ✅ Chỉ dùng CDN URL (không dùng "firebase/database")
-  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getDatabase, ref, get, set, remove, onValue,
-    goOffline, goOnline
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  // Import modular Firebase configuration
+  import { initFirebase } from '../static/js/firebase-config.js';
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCdSInR5JXWsFCZl3ygdoEeSRra6_wGrW4",
-    authDomain: "handover-4.firebaseapp.com",
-    databaseURL: "https://handover-4-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "handover-4",
-    storageBucket: "handover-4.firebasestorage.app",
-    messagingSenderId: "935608155206",
-    appId: "1:935608155206:web:4abc6a60e1736399571e47",
-    measurementId: "G-FVKZLCE7DB"
-  };
-
-  // ✅ Tránh lỗi "Firebase App '[DEFAULT]' already exists"
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  // Initialize Firebase for handover project
+  const { app, db, ref, get, set, remove, onValue, goOffline, goOnline, databaseURL } = await initFirebase('handover');
 
   // ✅ DB instance chuẩn
-  const db = getDatabase(app);
 
   // (tuỳ chọn) Tiết kiệm connection khi tab ẩn
   document.addEventListener("visibilitychange", () => {
@@ -248,37 +228,26 @@
     });
   }
 
- // ===== Sound Manager (đọc từ static/, giống v4.5.2) =====
-// URL tuyệt đối do Flask build (đúng cả khi đổi static_url_path).
-const STATIC_AUDIO_URLS = {
-  "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
-  "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
-  "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
-  "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
-  "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
-};
+ // ===== MODULAR SOUND SYSTEM =====
+let playOk, playErr, playCancel, playSysOk, playSysErr;
 
-// Map key logic -> file (giống tool PC)
-const SND_MAP = {
-  ok:          "ok.mp3",
-  err:         "error.mp3",
-  cancel:      "cancel.mp3",
-  sys_success: "sys_success.mp3",
-  sys_error:   "sys_error.mp3"
-};
-
-// Preload
-const _audioEls = new Map();
-Object.entries(STATIC_AUDIO_URLS).forEach(([name, url]) => {
-  const a = new Audio(url);
-  a.preload = "auto";
-  _audioEls.set(name, a);
-});
-
-// Beep fallback ngắn
-const BEEP_OK  = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhYWFhYWFhYQAA";
-const BEEP_ERR = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhZmZhZmZhZgAA";
-function _beep(ok=true){ const a=new Audio("data:audio/wav;base64,"+(ok?BEEP_OK:BEEP_ERR)); a.play().catch(()=>{}); }
+// Dynamic import for sound system
+(async () => {
+  try {
+    const soundModule = await import('../static/js/sound-system.js');
+    await soundModule.initSounds();
+    playOk = soundModule.playOk;
+    playErr = soundModule.playErr;
+    playCancel = soundModule.playCancel;
+    playSysOk = soundModule.playSysOk;
+    playSysErr = soundModule.playSysErr;
+  } catch (e) {
+    console.warn('Failed to load sound system:', e);
+    // Fallback to simple beep
+    const fallbackBeep = () => console.beep?.() || console.log('beep');
+    playOk = playErr = playCancel = playSysOk = playSysErr = fallbackBeep;
+  }
+})();
 
 // Reset về mặc định (SPX / hôm nay / page 1)
 function resetAll(){
@@ -375,13 +344,6 @@ function playByName(name) {
   a.currentTime = 0;
   a.play().catch(()=>{});
 }
-
-// Hàm public giống v4.5.2
-let playOk     = () => playByName(SND_MAP.ok);
-let playErr    = () => playByName(SND_MAP.err);
-let playCancel = () => playByName(SND_MAP.cancel);
-let playSysOk  = () => playByName(SND_MAP.sys_success);
-let playSysErr = () => playByName(SND_MAP.sys_error);
 
 // ===== Report (text + file) =====
 async function postJSON(url, body){
@@ -1004,8 +966,6 @@ if (el2.tblCancelBody) {
   const totalCancelFromSrc = Object.keys(cancelSrcCh).length;
   const cancelHdr = document.getElementById("cancelCountsHdr");
   if (cancelHdr) cancelHdr.textContent = `(${totalCancelInScan} / ${totalCancelFromSrc})`;
-
-
 }
 
 // Render 2 bảng
@@ -1093,7 +1053,6 @@ function bindAllListenersFor(dateKey){
   listenDataScan(dateKey);
   listenCancel(dateKey);
 }
-
 
 /* === BINDINGS === */
 bindToggle(el.chanGroup, () => {
