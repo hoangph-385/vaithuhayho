@@ -228,109 +228,29 @@
 
   /* ====================== CONFIG ====================== */
   const CONFIG = {
-    API_BASE: window.API_BASE || "",   // same-origin
-    Firebase_RTDB_URL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
-    firebase: {
-      apiKey: "AIzaSyAWB7MMNgLhmTJgDhV8WerUFqqGBdGwn0w",
-      authDomain: "data-scan-tool.firebaseapp.com",
-      databaseURL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "data-scan-tool",
-      storageBucket: "data-scan-tool.appspot.com",
-      messagingSenderId: "604963527207",
-      appId: "1:604963527207:web:82877194174efbc7a3cc02"
-    }
+    API_BASE: window.API_BASE || ""   // same-origin
   };
 
-  /* ====================== SOUND MANAGER (từ handover.html) ====================== */
-  // URL tuyệt đối do Flask build (đúng cả khi đổi static_url_path).
-  const STATIC_AUDIO_URLS = {
-    "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
-    "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
-    "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
-    "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
-    "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
-  };
+  // ===== MODULAR SOUND SYSTEM =====
+  let playOk, playErr, playCancel, playSysOk, playSysErr;
 
-  // Map key logic -> file (giống tool PC)
-  const SND_MAP = {
-    ok:          "ok.mp3",
-    err:         "error.mp3",
-    cancel:      "cancel.mp3",
-    sys_success: "sys_success.mp3",
-    sys_error:   "sys_error.mp3"
-  };
-
-  // Preload
-  const _audioEls = new Map();
-  Object.entries(STATIC_AUDIO_URLS).forEach(([name, url]) => {
-    const a = new Audio(url);
-    a.preload = "auto";
-    _audioEls.set(name, a);
-  });
-
-  // Beep fallback ngắn
-  const BEEP_OK  = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhYWFhYWFhYQAA";
-  const BEEP_ERR = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhZmZhZmZhZgAA";
-  function _beep(ok=true){ const a=new Audio("data:audio/wav;base64,"+(ok?BEEP_OK:BEEP_ERR)); a.play().catch(()=>{}); }
-
-  // Unlock autoplay (chỉ 1 biến)
-  let _audioUnlocked = false;
-
-  async function unlockAudioOnce() {
-    if (_audioUnlocked) return;
-    _audioUnlocked = true;
-
-    // 1) Ưu tiên WebAudio: phát 1 buffer im lặng (không đụng file mp3)
+  // Dynamic import for sound system
+  (async () => {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        const actx = new AudioCtx();
-        if (actx.state === "suspended" && actx.resume) {
-          // iOS Safari thường cần resume trong gesture
-          await actx.resume().catch(()=>{});
-        }
-        const buffer = actx.createBuffer(1, 1, actx.sampleRate); // 1 sample, silence
-        const src = actx.createBufferSource();
-        src.buffer = buffer;
-        src.connect(actx.destination);
-        src.start(0);
-        return; // xong, đã "mở khóa" audio stack
-      }
+      const soundModule = await import('../static/js/sound-system.js');
+      await soundModule.initSounds();
+      playOk = soundModule.playOk;
+      playErr = soundModule.playErr;
+      playCancel = soundModule.playCancel;
+      playSysOk = soundModule.playSysOk;
+      playSysErr = soundModule.playSysErr;
     } catch (e) {
-      // tiếp tục fallback
+      console.warn('Failed to load sound system:', e);
+      // Fallback to simple beep
+      const fallbackBeep = () => console.beep?.() || console.log('beep');
+      playOk = playErr = playCancel = playSysOk = playSysErr = fallbackBeep;
     }
-
-    // 2) Fallback: play+pause tất cả audio nhưng tắt tiếng tuyệt đối
-    for (const a of _audioEls.values()) {
-      try {
-        const prevMuted  = a.muted;
-        const prevVolume = a.volume;
-        a.muted  = true;
-        a.volume = 0;
-        await a.play().then(()=>a.pause()).catch(()=>{});
-        a.currentTime = 0;     // về đầu
-        a.muted  = prevMuted;  // khôi phục trạng thái
-        a.volume = prevVolume;
-      } catch (e) {}
-    }
-  }
-
-  window.addEventListener("click",  unlockAudioOnce, { once: true });
-  window.addEventListener("keydown", unlockAudioOnce, { once: true });
-
-  function playByName(name) {
-    const a = _audioEls.get(name);
-    if (!a) return _beep(false);
-    a.currentTime = 0;
-    a.play().catch(()=>{});
-  }
-
-  // Hàm public giống v4.5.2
-  let playOk     = () => playByName(SND_MAP.ok);
-  let playErr    = () => playByName(SND_MAP.err);
-  let playCancel = () => playByName(SND_MAP.cancel);
-  let playSysOk  = () => playByName(SND_MAP.sys_success);
-  let playSysErr = () => playByName(SND_MAP.sys_error);
+  })();
 
   /* ====================== UTILS ====================== */
 
@@ -621,9 +541,9 @@
   }
 
   /* ====================== DATA (RTDB helpers) ====================== */
-  const rtdbDayPath = (wh, day=todayKey()) => `${CONFIG.Firebase_RTDB_URL}/${wh}/${day}.json`;
+  const rtdbDayPath = (wh, day=todayKey()) => `${window.__firebaseDB.databaseURL}/${wh}/${day}.json`;
   const rtdbRecPath = (wh, day, shift, vendor, wfm) =>
-    `${CONFIG.Firebase_RTDB_URL}/${wh}/${day}/${encodeURIComponent(shift)}/${encodeURIComponent(vendor)}/${encodeURIComponent(wfm)}.json`;
+    `${window.__firebaseDB.databaseURL}/${wh}/${day}/${encodeURIComponent(shift)}/${encodeURIComponent(vendor)}/${encodeURIComponent(wfm)}.json`;
 
   async function fetchRTDBAll(wh, day=todayKey()){
     const r = await fetch(rtdbDayPath(wh, day));
@@ -1464,23 +1384,14 @@
 
 <!-- ========================== Firebase SDK (module) ========================== -->
 <script type="module">
-  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  // Import modular Firebase configuration
+  import { initFirebase } from '../static/js/firebase-config.js';
 
-  const cfg = {
-    apiKey: "AIzaSyAWB7MMNgLhmTJgDhV8WerUFqqGBdGwn0w",
-    authDomain: "data-scan-tool.firebaseapp.com",
-    databaseURL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "data-scan-tool",
-    storageBucket: "data-scan-tool.appspot.com",
-    messagingSenderId: "604963527207",
-    appId: "1:604963527207:web:82877194174efbc7a3cc02"
-  };
-  const app = getApps().length ? getApps()[0] : initializeApp(cfg);
-  const db  = getDatabase(app);
+  // Initialize Firebase for scan project
+  const { app, db, ref, onValue, databaseURL } = await initFirebase('scan');
 
   // “Cầu nối” để script chính dùng mà không cần import (giữ one-file)
-  window.__firebaseDB = { ref, onValue };
+  window.__firebaseDB = { ref, onValue, databaseURL };
   if (typeof window.__startRealtimeAll === 'function') {
     window.__startRealtimeAll(db);
   }
