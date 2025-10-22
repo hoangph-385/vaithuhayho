@@ -185,6 +185,13 @@
               <th class="sticky">Time Out <button class="filter-btn" data-col="gsheet_time_out" title="Lọc">⏷</button></th>
             </tr>
           </thead>
+          <tbody id="tbody-dash">
+            <tr class="loading-row">
+              <td colspan="15" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                🔄 Đang tải dữ liệu...
+              </td>
+            </tr>
+          </tbody>
         </table>
 
         <div class="pager" id="dash-pager">
@@ -540,8 +547,7 @@
     });
 
     if (locked) {
-      notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 4000);
-      playSysErr();
+      notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 6000);
     }
   }
 
@@ -1251,8 +1257,7 @@
     applyDashFiltersAndRender();
 
     // Show success message
-    notice("Đã reset tất cả bộ lọc", "success", 2000);
-    playSysOk();
+    notice("Đã reset tất cả bộ lọc", "success", 6000);
   }
 
   function showFilterModal(column) {
