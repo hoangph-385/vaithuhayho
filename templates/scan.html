@@ -212,8 +212,6 @@
     </div>
   </div>
 
-  <audio id="snd-ok" preload="auto"></audio>
-  <audio id="snd-err" preload="auto"></audio>
 <!-- ========================== APP SCRIPT (có thể tách assets/app.js) ========================== -->
 <script>
 (() => {
@@ -234,28 +232,98 @@
     }
   };
 
-  /* ====================== UTILS ====================== */
+  /* ====================== SOUND MANAGER (từ handover.html) ====================== */
+  // URL tuyệt đối do Flask build (đúng cả khi đổi static_url_path).
+  const STATIC_AUDIO_URLS = {
+    "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
+    "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
+    "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
+    "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
+    "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
+  };
 
-  // ==== Simple sound (beep) feedback ====
-  function playTone(freq=880, dur=140){
-    try{
-      const Ctx = window.AudioContext || window.webkitAudioContext; if(!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      osc.connect(gain); gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
-      osc.start();
-      const endAt = ctx.currentTime + dur/1000;
-      gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
-      osc.stop(endAt + 0.02);
-    }catch{}
+  // Map key logic -> file (giống tool PC)
+  const SND_MAP = {
+    ok:          "ok.mp3",
+    err:         "error.mp3",
+    cancel:      "cancel.mp3",
+    sys_success: "sys_success.mp3",
+    sys_error:   "sys_error.mp3"
+  };
+
+  // Preload
+  const _audioEls = new Map();
+  Object.entries(STATIC_AUDIO_URLS).forEach(([name, url]) => {
+    const a = new Audio(url);
+    a.preload = "auto";
+    _audioEls.set(name, a);
+  });
+
+  // Beep fallback ngắn
+  const BEEP_OK  = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhYWFhYWFhYQAA";
+  const BEEP_ERR = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhZmZhZmZhZgAA";
+  function _beep(ok=true){ const a=new Audio("data:audio/wav;base64,"+(ok?BEEP_OK:BEEP_ERR)); a.play().catch(()=>{}); }
+
+  // Unlock autoplay (chỉ 1 biến)
+  let _audioUnlocked = false;
+
+  async function unlockAudioOnce() {
+    if (_audioUnlocked) return;
+    _audioUnlocked = true;
+
+    // 1) Ưu tiên WebAudio: phát 1 buffer im lặng (không đụng file mp3)
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const actx = new AudioCtx();
+        if (actx.state === "suspended" && actx.resume) {
+          // iOS Safari thường cần resume trong gesture
+          await actx.resume().catch(()=>{});
+        }
+        const buffer = actx.createBuffer(1, 1, actx.sampleRate); // 1 sample, silence
+        const src = actx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(actx.destination);
+        src.start(0);
+        return; // xong, đã "mở khóa" audio stack
+      }
+    } catch (e) {
+      // tiếp tục fallback
+    }
+
+    // 2) Fallback: play+pause tất cả audio nhưng tắt tiếng tuyệt đối
+    for (const a of _audioEls.values()) {
+      try {
+        const prevMuted  = a.muted;
+        const prevVolume = a.volume;
+        a.muted  = true;
+        a.volume = 0;
+        await a.play().then(()=>a.pause()).catch(()=>{});
+        a.currentTime = 0;     // về đầu
+        a.muted  = prevMuted;  // khôi phục trạng thái
+        a.volume = prevVolume;
+      } catch (e) {}
+    }
   }
-  const playOk  = ()=>playTone(900, 120);
-  const playErr = ()=>playTone(220, 180);
+
+  window.addEventListener("click",  unlockAudioOnce, { once: true });
+  window.addEventListener("keydown", unlockAudioOnce, { once: true });
+
+  function playByName(name) {
+    const a = _audioEls.get(name);
+    if (!a) return _beep(false);
+    a.currentTime = 0;
+    a.play().catch(()=>{});
+  }
+
+  // Hàm public giống v4.5.2
+  let playOk     = () => playByName(SND_MAP.ok);
+  let playErr    = () => playByName(SND_MAP.err);
+  let playCancel = () => playByName(SND_MAP.cancel);
+  let playSysOk  = () => playByName(SND_MAP.sys_success);
+  let playSysErr = () => playByName(SND_MAP.sys_error);
+
+  /* ====================== UTILS ====================== */
 
   // ==== Vendor code helpers ====
   // 10 ký tự, bắt đầu bằng "SP", phần còn lại chữ/số
@@ -469,7 +537,10 @@
       n.style.cursor  = locked ? "not-allowed" : "pointer";
     });
 
-    if (locked) notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 4000);
+    if (locked) {
+      notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 4000);
+      playSysErr();
+    }
   }
 
 
@@ -793,6 +864,7 @@
 
     if (!wfmText){
       notice("Vui lòng scan QR, hoặc nhập mã Vendor (SP********) / WFM.", "error");
+      playSysErr();
       return;
     }
     setBusy(true);
@@ -808,6 +880,7 @@
       // Không có staff_no thì dừng (không ném lỗi để UI giữ thông tin)
       if (!staff_no){
         notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        playSysErr();
         return;
       }
 
@@ -817,7 +890,11 @@
         const flat = flattenRecords(raw);
         const rec  = findTodayRec(flat, staff_no);
         const msg  = checkDuplicateByKeys(rec, "in");
-        if (msg){ notice(msg, "error", 5000); return; }
+        if (msg){
+          notice(msg, "error", 5000);
+          playSysErr();
+          return;
+        }
       }
 
       // Gọi attendance & activity khi đã có staff_no
@@ -853,12 +930,12 @@
 
       setPersonUI("in", info, img_url ? await imgFromUrl(img_url) : "");
       notice(`✅ ${rec.fullname || ""} scan in ${now.toTimeString().slice(0,8)}`, "success", 6000);
-      playOk();
+      playSysOk();
       el("in-wfm").value = "";
       el("in-wfm").focus();
     }catch(e){
       notice(`Scan in lỗi: ${e.message || e}`, "error", 5000);
-      playErr();
+      playSysErr();
     }finally{
       setAllDisabled(false);
       setBusy(false);
@@ -885,6 +962,7 @@
 
       if (!staff_no) {
         notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        playSysErr();
         return;
       }
 
@@ -901,13 +979,18 @@
       const isOut = rec && (hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out));
       if (!isIn || isOut) {
         notice("Staff chưa scan in hoặc đã scan out!", "error", 5000);
+        playSysErr();
         return;
       }
 
       // 2) Chặn trùng theo key (key nào đã có giá trị thì block)
       {
         const msg = checkDuplicateByKeys(rec, act_no);
-        if (msg) { notice(msg, "error", 5000); return; }
+        if (msg) {
+          notice(msg, "error", 5000);
+          playSysErr();
+          return;
+        }
       }
 
       // 3) Xử lý theo loại task
@@ -955,7 +1038,7 @@
 
       // 5) UI done
   notice(`✅ ${(resp?.data?.staff_name || info?.full_name || "")} ${task_time}`, "success", 5000);
-  playOk();
+  playSysOk();
       el("task-operator").textContent = resp?.data?.staff_name || "";
       el("task-wmsid").textContent    = resp?.data?.wms_user_id || "";
 
@@ -964,7 +1047,7 @@
     } catch (e) {
       console.error(e);
       notice(`Task lỗi: ${e.message || e}`, "error", 5000);
-      playErr();
+      playSysErr();
     } finally {
       setAllDisabled(false);
       safeFocus("task-wfm");
@@ -978,7 +1061,11 @@
     const wfmText = el("out-wfm").value.trim();
     const rawOut  = assertValidVendorOrQR(wfmText);
 
-    if (!rawOut) {notice("Vui lòng nhập/scan mã WFM.", "error"); return;}
+    if (!rawOut) {
+      notice("Vui lòng nhập/scan mã WFM.", "error");
+      playSysErr();
+      return;
+    }
 
     try {
       setAllDisabled(true);
@@ -987,6 +1074,7 @@
 
       if (!staff_no){
         notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        playSysErr();
         el("out-wfm").value = ""; safeFocus("out-wfm");
         return;}
 
@@ -1000,13 +1088,20 @@
       // Bắt buộc đã In và chưa Out
       const isIn  = rec && hasVal(rec.shift_in);
       const isOut = rec && (hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out));
-      if (!isIn || isOut) {notice("Nhân viên này chưa Scan In trước đó hoặc đã Scan Out.", "error", 5000);return;
+      if (!isIn || isOut) {
+        notice("Nhân viên này chưa Scan In trước đó hoặc đã Scan Out.", "error", 5000);
+        playSysErr();
+        return;
       }
 
       // Chặn trùng theo key cho Out (shift_out đã có)
       {
         const msg = checkDuplicateByKeys(rec, "out");
-        if (msg){ notice(msg, "error", 5000); return; }
+        if (msg){
+          notice(msg, "error", 5000);
+          playSysErr();
+          return;
+        }
         el("out-wfm").value = ""; safeFocus("out-wfm");
       }
 
@@ -1036,12 +1131,12 @@
       await fetch(url, { method:"PATCH", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(patch) });
 
       notice(`✅ ${(info?.full_name || rec.fullname || "")} scan out ${now.toTimeString().slice(0,8)}`, "success", 5000);
-      playOk();
+      playSysOk();
       el("out-wfm").value = "";
 
     }catch(e){
       notice(`Scan out lỗi: ${e.message || e}`, "error", 5000);
-      playErr();
+      playSysErr();
     }finally{
       setAllDisabled(false);
       setBusy(false);
@@ -1082,6 +1177,8 @@
         },
         (err)=>{
           console.error("[Realtime] error:", err);
+          notice("Lỗi kết nối Firebase!", "error", 3000);
+          playSysErr();
           setBusy(false);
         }
       );
@@ -1254,6 +1351,7 @@
     el("hour").value = h;
     el("minute").value = use30;
     notice("Dữ liệu đã sẵn sàng!", "success", 2000);
+    playSysOk();
     scheduleShiftAutoAdvance();
     setActiveTab('scan');
     initDayPicker();
@@ -1296,9 +1394,11 @@
       const wh = el("warehouse")?.value || "WAREHOUSE";
       const day = el("dayPicker")?.value || todayKey();
       XLSX.writeFile(wb, `dashboard_${wh}_${day}.xlsx`);
+      playSysOk();
     }catch(e){
       console.error(e);
       notice("Xuất Excel thất bại.", "error", 4000);
+      playSysErr();
     }
   });
 
