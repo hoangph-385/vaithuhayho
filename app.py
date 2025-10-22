@@ -29,7 +29,7 @@ app.register_blueprint(wms_bp, url_prefix='/wms')
 app.register_blueprint(report_bp, url_prefix='/api/report')
 
 # ───── Constants ─────
-PUBLIC_PATHS = {"/", "/healthz", "/about", "/scan", "/handover"}
+PUBLIC_PATHS = {"/", "/scan", "/handover"}
 
 # (Removed) Background Task handler and threads
 
@@ -48,11 +48,6 @@ def scan():
 def handover():
     """Handover Tool page"""
     return render_template("handover.html")
-
-@app.route("/about")
-def about():
-    """About page"""
-    return render_template("about.html")
 
 # ───── Server ─────
 def run_flask():

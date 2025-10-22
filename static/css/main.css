@@ -8,9 +8,9 @@
   --text-color: #333;
   --border-color: #ccc;
   --header-bg: #111;
-  --success: #0ce90c;
-  --error: #f30d0d;
-  --warning: #d37938;
+  --success: #c8f3c8;
+  --error: #f78181;
+  --warning: #caad97;
 }
 
 * {
@@ -76,13 +76,20 @@ main {
 }
 
 .btn-toggle {
-  padding: 6px 10px;
+  padding: 0px 14px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background: var(--border-color);
   cursor: pointer;
   min-width: 64px;
+  height: 42px;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   transition: all 0.2s;
+  vertical-align: middle;
 }
 
 .btn-toggle.active {
@@ -99,13 +106,19 @@ main {
 }
 
 .btn-action {
-  padding: 6px 10px;
+  padding: 0px 14px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background: #f8f8f8;
   cursor: pointer;
   min-width: 80px;
+  height: 42px;
+  font-size: 16px;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
@@ -138,14 +151,20 @@ main {
 }
 
 .btn-report {
-  padding: 6px 10px;
+  padding: 0px 14px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background: #4570d5;
   color: #fff;
   cursor: pointer;
   min-width: 80px;
+  height: 42px;
+  font-size: 16px;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
@@ -168,38 +187,63 @@ button {
 /* ========== Notice/Alert Box ========== */
 .notice {
   margin: 16px 0;
-  padding: 10px 12px;
-  background: var(--warning);
-  border: 1px solid #FFA500;
+  padding: 14px 16px;
+  background: #fffbf0;
+  border: 1px solid #f0e68c;
   border-radius: 6px;
-  min-height: 40px;
+  min-height: 60px;
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 1;
+  opacity: 1;
+  color: #8b7355;
+}
+
+.notice[data-kind="info"] {
+  color: #31708f;
+  background: #d9edf7;
+  border-color: #bce8f1;
 }
 
 .notice[data-kind="success"] {
   color: #3c763d;
-  font-weight: 700;
-  background: var(--success);
-  border-color: #3c763d;
+  font-weight: 600;
+  background: #dff0d8;
+  border-color: #d6e9c6;
+}
+
+.notice[data-kind="warning"] {
+  color: #8a6d3b;
+  font-weight: 600;
+  background: #fcf8e3;
+  border-color: #faebcc;
 }
 
 .notice[data-kind="error"] {
   color: #a94442;
-  font-weight: 700;
-  background: var(--error);
-  border-color: #a94442;
+  font-weight: 600;
+  background: #f2dede;
+  border-color: #ebccd1;
 }
 
+/* Notice luôn hiển thị - để trống */
+
 /* ========== Input Fields ========== */
+input,
 input[type="text"],
 input[type="date"],
 input[type="number"],
 select {
-  padding: 6px 10px;
+  padding: 8px 14px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
+  height: 42px;
+  line-height: 1.2;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 input.big {
@@ -207,8 +251,15 @@ input.big {
   padding: 10px 12px;
 }
 
+/* Input mã vận đơn dài hơn */
+#orderId, #deleteBox {
+  height: 42px;
+  min-width: 200px;
+  width: 350px;
+}
+
 label {
-  font-size: 14px;
+  font-size: 16px;
   color: #555;
 }
 
@@ -357,6 +408,7 @@ table td {
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 #controls > * {
@@ -373,17 +425,20 @@ table td {
 #tablesWrap {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  gap: 12px;
+  gap: 20px;
   align-items: start;
-}
-
-#cancelSection {
-  grid-area: cancel;
+  margin-top: 20px;
+  width: 100%;
 }
 
 #scanSection {
-  grid-area: scan;
+  width: 100%;
+  overflow: hidden;
+}
+
+#cancelSection {
+  width: 100%;
+  overflow: hidden;
 }
 
 #scanSection h3,
@@ -427,20 +482,36 @@ table td {
   border-collapse: collapse;
 }
 
-#tblScan tbody,
-#tblCancel tbody {
-  display: block;
-  max-height: 600px;
-  overflow-y: auto;
+/* Cách tiếp cận mới: dùng sticky header thay vì display block */
+#tblScan,
+#tblCancel {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  white-space: nowrap;
+  display: table;
 }
 
-#tblScan thead,
-#tblScan tbody tr,
-#tblCancel thead,
-#tblCancel tbody tr {
-  display: table;
+#tblScan thead th,
+#tblCancel thead th {
+  position: sticky;
+  top: 0;
+  background: #f0f0f0;
+  z-index: 10;
+}
+
+#tblScan tbody,
+#tblCancel tbody {
+  display: table-row-group;
+}
+
+.table-scroll {
   width: 100%;
-  table-layout: fixed;
+  max-height: 3000px;
+  min-height: 200px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 6px;
 }
 
 #scanSection > div:last-of-type,
@@ -484,9 +555,14 @@ table td {
   }
 
   #tablesWrap {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  #scanSection,
+  #cancelSection {
+    width: 100%;
   }
 
   #controls {
@@ -512,7 +588,27 @@ table td {
   .btn-action,
   .btn-report,
   .btn-toggle {
-    padding: 5px 8px !important;
+    padding: 0px 10px !important;
+    font-size: 14px !important;
+    height: 36px !important;
+  }
+
+  /* Input responsive cho mobile */
+  input,
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select {
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    height: 36px !important;
+    line-height: 1.2 !important;
+    vertical-align: middle !important;
+  }
+
+  #orderId, #deleteBox {
+    width: 130px !important;
+    min-width: 150px !important;
   }
 
   #tblScan th,
@@ -520,6 +616,43 @@ table td {
   #tblCancel th,
   #tblCancel td {
     font-size: 11px !important;
+    padding: 2px 4px !important;
+  }
+
+  /* Giảm độ rộng cột trên mobile nhưng vẫn tránh wrap */
+  #tblScan th:nth-child(1),
+  #tblScan td:nth-child(1),
+  #tblCancel th:nth-child(1),
+  #tblCancel td:nth-child(1) {
+    width: 35px !important; /* No. */
+  }
+
+  #tblScan th:nth-child(2),
+  #tblScan td:nth-child(2),
+  #tblCancel th:nth-child(2),
+  #tblCancel td:nth-child(2) {
+    width: 140px !important; /* Mã Đơn */
+  }
+
+  #tblScan th:nth-child(3),
+  #tblScan td:nth-child(3),
+  #tblCancel th:nth-child(3),
+  #tblCancel td:nth-child(3) {
+    width: 110px !important; /* Scan Time */
+  }
+
+  #tblScan th:nth-child(4),
+  #tblScan td:nth-child(4),
+  #tblCancel th:nth-child(4),
+  #tblCancel td:nth-child(4) {
+    width: 70px !important; /* User */
+  }
+
+  #tblScan th:nth-child(5),
+  #tblScan td:nth-child(5),
+  #tblCancel th:nth-child(5),
+  #tblCancel td:nth-child(5) {
+    width: 60px !important; /* Cancel? */
   }
 
   #cancelCountsHdr,
@@ -717,6 +850,302 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 .pager { display:flex; gap:8px; align-items:center; padding: 8px 0; flex-wrap: wrap; }
 .pager .jump { width: 80px; }
 
+/* Auto-fit columns cho handover tables */
+#tblScan th,
+#tblScan td,
+#tblCancel th,
+#tblCancel td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 8px;
+}
+
+/* Auto-fit columns cho dashboard table */
+#tbl-dashboard th,
+#tbl-dashboard td {
+  white-space: normal;
+  word-wrap: break-word;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  max-width: 150px;
+  font-size: 11px;
+  line-height: 1.3;
+  vertical-align: middle;
+  text-align: center;
+  height: 32px;
+}
+
+#tbl-dashboard th {
+  white-space: nowrap;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  font-weight: 600;
+  text-align: center;
+  height: 36px;
+}
+
+#tbl-dashboard {
+  table-layout: auto;
+  width: 100%;
+  word-break: break-word;
+  font-size: 11px;
+}
+
+/* Column widths cho dashboard */
+#tbl-dashboard th:nth-child(1),  /* STT */
+#tbl-dashboard td:nth-child(1) { width: 40px; min-width: 40px; }
+
+#tbl-dashboard th:nth-child(2),  /* Nhà Thầu */
+#tbl-dashboard td:nth-child(2) { width: 80px; min-width: 80px; }
+
+#tbl-dashboard th:nth-child(3),  /* Mã Vendor */
+#tbl-dashboard td:nth-child(3) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(4),  /* Mã WFM */
+#tbl-dashboard td:nth-child(4) { width: 80px; min-width: 80px; }
+
+#tbl-dashboard th:nth-child(5),  /* Mã WMS */
+#tbl-dashboard td:nth-child(5) { width: 80px; min-width: 80px; }
+
+#tbl-dashboard th:nth-child(6),  /* Operator */
+#tbl-dashboard td:nth-child(6) { width: 120px; min-width: 120px; }
+
+#tbl-dashboard th:nth-child(7),  /* Họ và Tên */
+#tbl-dashboard td:nth-child(7) { width: 140px; min-width: 140px; }
+
+#tbl-dashboard th:nth-child(8),  /* Giới tính */
+#tbl-dashboard td:nth-child(8) { width: 60px; min-width: 60px; }
+
+#tbl-dashboard th:nth-child(9),  /* Năm sinh */
+#tbl-dashboard td:nth-child(9) { width: 60px; min-width: 60px; }
+
+#tbl-dashboard th:nth-child(10), /* Time in */
+#tbl-dashboard td:nth-child(10) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(11), /* Nghỉ Trưa */
+#tbl-dashboard td:nth-child(11) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(12), /* Vào Ca Trưa */
+#tbl-dashboard td:nth-child(12) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(13), /* Nghỉ OT */
+#tbl-dashboard td:nth-child(13) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(14), /* Vào Ca OT */
+#tbl-dashboard td:nth-child(14) { width: 100px; min-width: 100px; }
+
+#tbl-dashboard th:nth-child(15), /* Time Out */
+#tbl-dashboard td:nth-child(15) { width: 100px; min-width: 100px; }
+
+/* Responsive dashboard table */
+@media (max-width: 768px) {
+  #tbl-dashboard {
+    font-size: 9px;
+  }
+
+  #tbl-dashboard th,
+  #tbl-dashboard td {
+    padding: 2px 3px;
+    min-width: 60px;
+    font-size: 9px;
+    line-height: 1.2;
+    text-align: center;
+    vertical-align: middle;
+    height: 28px;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+}
+
+/* Filter buttons giống Excel */
+.filter-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: 6px;
+  border-radius: 2px;
+  display: inline-block;
+  vertical-align: middle;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--border-color);
+  color: var(--text-color);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Filter modal */
+.filter-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-modal.show {
+  display: flex;
+}
+
+.filter-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 300px;
+  width: 90%;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.filter-content h4 {
+  margin: 0 0 15px 0;
+  color: var(--primary);
+}
+
+.filter-options {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.filter-option:hover {
+  background: #f5f5f5;
+}
+
+.filter-option input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: flex-end;
+}
+
+.filter-actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  background: white;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.filter-actions .btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Table container without scroll */
+.table-container {
+  width: 100%;
+  overflow: visible;
+}
+
+#tbl-dashboard th {
+  position: relative;
+  text-align: center;
+  white-space: nowrap;
+  display: table-cell;
+  vertical-align: middle;
+}
+
+#tbl-dashboard th .filter-btn {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Tab buttons styling */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  padding: 12px 20px;
+  border: none;
+  background: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: var(--border-color);
+}
+
+.tab-btn.active {
+  background: var(--card-bg);
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
+  font-weight: 600;
+}
+
+/* Thiết lập độ rộng tối ưu cho từng cột */
+#tblScan th:nth-child(1),
+#tblScan td:nth-child(1),
+#tblCancel th:nth-child(1),
+#tblCancel td:nth-child(1) {
+  width: 50px; /* No. */
+}
+
+#tblScan th:nth-child(2),
+#tblScan td:nth-child(2),
+#tblCancel th:nth-child(2),
+#tblCancel td:nth-child(2) {
+  width: 180px; /* Mã Đơn */
+}
+
+#tblScan th:nth-child(3),
+#tblScan td:nth-child(3),
+#tblCancel th:nth-child(3),
+#tblCancel td:nth-child(3) {
+  width: 140px; /* Scan Time */
+}
+
+#tblScan th:nth-child(4),
+#tblScan td:nth-child(4),
+#tblCancel th:nth-child(4),
+#tblCancel td:nth-child(4) {
+  width: 100px; /* User */
+}
+
+#tblScan th:nth-child(5),
+#tblScan td:nth-child(5),
+#tblCancel th:nth-child(5),
+#tblCancel td:nth-child(5) {
+  width: 80px; /* Cancel? */
+}
+
 /* Basic link/list styling to replace inline */
 .prose ul { line-height: 1.8; }
 .prose a { color: var(--primary); text-decoration: none; }
@@ -725,3 +1154,80 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 /* Status backgrounds */
 .bg-yes { background: #ffebeb; }
 .bg-no  { background: #ebffeb; }
+
+/* ========== Pagination Buttons ========== */
+/* Pagination buttons cho dashboard giống handover */
+#dash-prev, #dash-next,
+#scanPrev, #scanNext,
+#cancelPrev, #cancelNext {
+  padding: 4px 8px;
+  margin: 0 2px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #495057;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#dash-prev:hover, #dash-next:hover,
+#scanPrev:hover, #scanNext:hover,
+#cancelPrev:hover, #cancelNext:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  color: #343a40;
+}
+
+#dash-prev:active, #dash-next:active,
+#scanPrev:active, #scanNext:active,
+#cancelPrev:active, #cancelNext:active {
+  background: #dee2e6;
+  border-color: #6c757d;
+  transform: translateY(1px);
+}
+
+/* Disabled state */
+#dash-prev:disabled, #dash-next:disabled,
+#scanPrev:disabled, #scanNext:disabled,
+#cancelPrev:disabled, #cancelNext:disabled {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+  color: #adb5bd;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+#dash-prev:disabled:hover, #dash-next:disabled:hover,
+#scanPrev:disabled:hover, #scanNext:disabled:hover,
+#cancelPrev:disabled:hover, #cancelNext:disabled:hover {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+  color: #adb5bd;
+  transform: none;
+}
+
+/* Page display styling */
+#scanPageDisplay, #cancelPageDisplay {
+  font-size: 12px;
+  font-weight: 500;
+  color: #495057;
+  padding: 0 8px;
+  margin: 0 4px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  min-width: 50px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+

@@ -6,8 +6,6 @@
   window.API_BASE = window.API_BASE || "";
 </script>
 
-
-
   <div id="notice" class="notice" data-kind="success"></div>
 
   <div class="row card space-between">
@@ -37,8 +35,8 @@
       <!-- IN -->
       <div class="card">
         <div class="row">
-          <input id="in-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
-          <button id="btnScanIn">Scan In</button>
+          <input id="in-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
+          <button id="btnScanIn" class="btn-action">Scan In</button>
         </div>
         <hr>
         <div class="grid grid-2">
@@ -60,8 +58,8 @@
       <!-- OUT -->
       <div class="card">
         <div class="row">
-          <input id="out-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
-          <button id="btnScanOut">Scan Out</button>
+          <input id="out-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
+          <button id="btnScanOut" class="btn-action">Scan Out</button>
         </div>
         <hr>
         <div class="grid grid-2">
@@ -106,13 +104,13 @@
   <section id="tab-task" class="tab-panel grid grid-2 is-hidden">
     <div class="grid">
       <div class="card row">
-        <input id="task-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
+        <input id="task-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
         <select id="task-type">
           <option value="A0027">Nghỉ Trưa</option>
           <option value="A0020">Vào Ca</option>
           <option value="A0026">Nghỉ OT</option>
         </select>
-        <button id="btnScanTask">SCAN</button>
+        <button id="btnScanTask" class="btn-action">SCAN</button>
         <div id="task-result" class="kpi ml-auto"></div>
       </div>
 
@@ -159,62 +157,60 @@
     <div class="table-wrap card">
   <div class="title">
     <span>Dashboard nhân sự</span>
-    <button id="btnExportXlsx" title="Tải Excel">Export Excel</button>
+    <button id="btnExportXlsx" class="btn-report" title="Tải Excel">Export Excel</button>
   </div>
 
 
-      <div class="table-scroll">
+      <div class="table-container">
         <table class="table" id="tbl-dashboard">
           <thead>
             <tr>
               <th class="sticky">STT</th>
-              <th class="sticky">Nhà Thầu</th>
-              <th class="sticky">Mã Vendor</th>
-              <th class="sticky">Mã WFM</th>
-              <th class="sticky">Mã WMS</th>
-              <th class="sticky">Operator</th>
-              <th class="sticky">Họ và Tên</th>
-              <th class="sticky">Giới tính</th>
-              <th class="sticky">Năm sinh</th>
-              <th class="sticky">Time in</th>
-              <th class="sticky">Nghỉ Trưa</th>
-              <th class="sticky">Vào Ca Trưa</th>
-              <th class="sticky">Nghỉ OT</th>
-              <th class="sticky">Vào Ca OT</th>
-              <th class="sticky">Time Out</th>
-            </tr>
-            <tr class="filter-row">
-              <th></th>
-              <th><input class="col-filter" data-col="vendor_name" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="vendor_code" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="wfm_code" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="wms_user_id" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="operator" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="fullname" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="gender" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="birth_year" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="gsheet_time_in" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="break_60" placeholder="Lọc..."></th>
-                            <th><input class="col-filter" data-col="break_60_in" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="break_30" placeholder="Lọc..."></th>
-
-              <th><input class="col-filter" data-col="break_30_in" placeholder="Lọc..."></th>
-              <th><input class="col-filter" data-col="gsheet_time_out" placeholder="Lọc..."></th>
+              <th class="sticky">Nhà Thầu <button class="filter-btn" data-col="vendor_name" title="Lọc">⏷</button></th>
+              <th class="sticky">Mã Vendor <button class="filter-btn" data-col="vendor_code" title="Lọc">⏷</button></th>
+              <th class="sticky">Mã WFM <button class="filter-btn" data-col="wfm_code" title="Lọc">⏷</button></th>
+              <th class="sticky">Mã WMS <button class="filter-btn" data-col="wms_user_id" title="Lọc">⏷</button></th>
+              <th class="sticky">Operator <button class="filter-btn" data-col="operator" title="Lọc">⏷</button></th>
+              <th class="sticky">Họ và Tên <button class="filter-btn" data-col="fullname" title="Lọc">⏷</button></th>
+              <th class="sticky">Giới tính <button class="filter-btn" data-col="gender" title="Lọc">⏷</button></th>
+              <th class="sticky">Năm sinh <button class="filter-btn" data-col="birth_year" title="Lọc">⏷</button></th>
+              <th class="sticky">Time in <button class="filter-btn" data-col="gsheet_time_in" title="Lọc">⏷</button></th>
+              <th class="sticky">Nghỉ Trưa <button class="filter-btn" data-col="break_60" title="Lọc">⏷</button></th>
+              <th class="sticky">Vào Ca Trưa <button class="filter-btn" data-col="break_60_in" title="Lọc">⏷</button></th>
+              <th class="sticky">Nghỉ OT <button class="filter-btn" data-col="break_30" title="Lọc">⏷</button></th>
+              <th class="sticky">Vào Ca OT <button class="filter-btn" data-col="break_30_in" title="Lọc">⏷</button></th>
+              <th class="sticky">Time Out <button class="filter-btn" data-col="gsheet_time_out" title="Lọc">⏷</button></th>
             </tr>
           </thead>
           <tbody id="tbody-dash"><tr><td>1</td><td>GRGR</td><td>SPGRG02305</td><td>S098484</td><td>466404</td><td>Đà Nẵng_NGUYỄN THỊ KHÁNH LY_GRGR001</td><td>NGUYỄN THỊ KHÁNH LY</td><td>NỮ</td><td>2004</td><td>13:30</td><td>12 Oct 2025 13:37:49</td><td>13:37:57</td><td>13:38:20</td><td>13:30</td><td>12 Oct 2025 13:38:53</td></tr></tbody>
         </table>
 
         <div class="pager" id="dash-pager">
-          <button id="dash-prev" disabled="">« Prev</button>
+          <button id="dash-prev" class="btn-action" disabled="">«</button>
           <span class="page-info" id="dash-info">Trang 1 / 1 — 1 dòng</span>
-          <button id="dash-next" disabled="">Next »</button>
+          <button id="dash-next" class="btn-action" disabled="">»</button>
           <span>Đến trang:</span>
           <input type="number" min="1" value="1" class="jump" id="dash-jump">
         </div>
       </div>
     </div>
   </section>
+
+  <!-- Filter Modal -->
+  <div id="filterModal" class="filter-modal">
+    <div class="filter-content">
+      <h4 id="filterTitle">Lọc dữ liệu</h4>
+      <div class="filter-search">
+        <input type="text" id="filterSearch" placeholder="Tìm kiếm..." style="width: 100%; margin-bottom: 10px;">
+      </div>
+      <div id="filterOptions" class="filter-options"></div>
+      <div class="filter-actions">
+        <button id="filterClear">Xóa tất cả</button>
+        <button id="filterCancel">Hủy</button>
+        <button id="filterApply" class="btn-primary">Áp dụng</button>
+      </div>
+    </div>
+  </div>
 
   <audio id="snd-ok" preload="auto"></audio>
   <audio id="snd-err" preload="auto"></audio>
@@ -661,7 +657,7 @@
   }
 
   // Dashboard
-  const DASH = { rows:[], filtered:[], page:1, pageSize:10, filters:{} };
+  const DASH = { rows:[], filtered:[], page:1, pageSize:50, filters:{} };
 
   function normalizeDashRow(r){
     return {
@@ -715,7 +711,7 @@
   function renderDashTable(){
     const body=el("tbody-dash"); if(!body) return;
     body.innerHTML="";
-    const total=DASH.filtered.length, ps=DASH.pageSize||10;
+    const total=DASH.filtered.length, ps=DASH.pageSize||50;
     const maxPage=Math.max(1, Math.ceil(total/ps));
     if(DASH.page>maxPage) DASH.page=maxPage;
     const start=(DASH.page-1)*ps, end=Math.min(start+ps,total);
@@ -1112,20 +1108,135 @@
     el("btnScanTask").onclick = ()=>doScan("task");
     el("task-wfm").addEventListener("keydown", e=>{ if(e.key==="Enter") doScan("task"); });
 
-    // Dashboard filters + pager
-    $$('#tbl-dashboard thead input.col-filter').forEach(inp=>{
-      inp.addEventListener('input', ()=>{
-        DASH.filters[inp.dataset.col]=inp.value;
-        DASH.page=1;
-        applyDashFiltersAndRender();
+    // Dashboard filter buttons + pager
+    $$('.filter-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        showFilterModal(btn.dataset.col);
       });
     });
+
     el("dash-prev")?.addEventListener('click', ()=>{ if(DASH.page>1){ DASH.page--; renderDashTable(); }});
     el("dash-next")?.addEventListener('click', ()=>{ DASH.page++; renderDashTable(); });
     el("dash-jump")?.addEventListener('change', ()=>{
       const jump=el("dash-jump"); const v=Math.max(1, parseInt(jump.value||"1",10));
       DASH.page=v; renderDashTable();
     });
+
+    // Filter modal events
+    el("filterCancel")?.addEventListener('click', hideFilterModal);
+    el("filterModal")?.addEventListener('click', (e)=>{
+      if(e.target === el("filterModal")) hideFilterModal();
+    });
+    el("filterClear")?.addEventListener('click', clearCurrentFilter);
+    el("filterApply")?.addEventListener('click', applyCurrentFilter);
+    el("filterSearch")?.addEventListener('input', filterSearchOptions);
+  }
+
+  // Filter functionality
+  let currentFilterColumn = null;
+  let currentFilterValues = new Set();
+
+  function showFilterModal(column) {
+    currentFilterColumn = column;
+    const title = el("filterTitle");
+    const options = el("filterOptions");
+    const modal = el("filterModal");
+
+    // Get unique values for this column
+    const values = [...new Set(DASH.rows.map(row => String(row[column] || "")).filter(v => v.trim()))].sort();
+
+    title.textContent = `Lọc: ${getColumnTitle(column)}`;
+
+    // Build options HTML
+    options.innerHTML = values.map(value => `
+      <div class="filter-option">
+        <input type="checkbox" id="filter_${value}" value="${value}" ${currentFilterValues.has(value) ? 'checked' : ''}>
+        <label for="filter_${value}">${value}</label>
+      </div>
+    `).join('');
+
+    modal.classList.add('show');
+  }
+
+  function hideFilterModal() {
+    el("filterModal").classList.remove('show');
+    el("filterSearch").value = '';
+  }
+
+  function getColumnTitle(column) {
+    const titles = {
+      vendor_name: 'Nhà Thầu',
+      vendor_code: 'Mã Vendor',
+      wfm_code: 'Mã WFM',
+      wms_user_id: 'Mã WMS',
+      operator: 'Operator',
+      fullname: 'Họ và Tên',
+      gender: 'Giới tính',
+      birth_year: 'Năm sinh',
+      gsheet_time_in: 'Time in',
+      break_60: 'Nghỉ Trưa',
+      break_60_in: 'Vào Ca Trưa',
+      break_30: 'Nghỉ OT',
+      break_30_in: 'Vào Ca OT',
+      gsheet_time_out: 'Time Out'
+    };
+    return titles[column] || column;
+  }
+
+  function clearCurrentFilter() {
+    $$('#filterOptions input[type="checkbox"]').forEach(cb => cb.checked = false);
+  }
+
+  function applyCurrentFilter() {
+    const checkedValues = Array.from($$('#filterOptions input[type="checkbox"]:checked')).map(cb => cb.value);
+
+    if (checkedValues.length === 0) {
+      delete DASH.filters[currentFilterColumn];
+    } else {
+      DASH.filters[currentFilterColumn] = checkedValues;
+    }
+
+    // Update filter button appearance
+    const filterBtn = $(`.filter-btn[data-col="${currentFilterColumn}"]`);
+    if (filterBtn) {
+      if (checkedValues.length === 0) {
+        filterBtn.classList.remove('active');
+      } else {
+        filterBtn.classList.add('active');
+      }
+    }
+
+    DASH.page = 1;
+    applyDashFiltersAndRender();
+    hideFilterModal();
+  }
+
+  function filterSearchOptions() {
+    const searchValue = el("filterSearch").value.toLowerCase();
+    $$('.filter-option').forEach(option => {
+      const label = option.querySelector('label').textContent.toLowerCase();
+      option.style.display = label.includes(searchValue) ? 'flex' : 'none';
+    });
+  }
+
+  function applyDashFiltersAndRender(){
+    const fs=DASH.filters||{};
+    DASH.filtered = DASH.rows.filter(row=>{
+      for(const [k,val] of Object.entries(fs)){
+        if(!val) continue;
+        if (Array.isArray(val)) {
+          // New filter format - array of selected values
+          if (!val.includes(String(row[k] || ""))) return false;
+        } else {
+          // Old format fallback
+          const q=v=>String(v||"").toLowerCase();
+          if(!q(row[k]).includes(q(val))) return false;
+        }
+      }
+      return true;
+    });
+    renderDashTable();
   }
 
   function initDayPicker(){

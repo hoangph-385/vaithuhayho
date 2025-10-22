@@ -1,11 +1,13 @@
 {% extends "home.html" %}
 {% block title %}Handover Tool{% endblock %}
 {% block content %}
-<h1>Handover Tool</h1>
 
 <script>
-  window.API_BASE = window.API_BASE || "";   // mặc định cùng origin; thay bằng "http://127.0.0.1:8008" khi dev
+  window.API_BASE = window.API_BASE || "";
 </script>
+
+<!-- ===== Notice ===== -->
+<div id="notice" class="notice"></div>
 
 <!-- ===== Controls (mới) ===== -->
 <div id="controls">
@@ -16,15 +18,15 @@
   </div>
 
   <div class="row">
-    <input id="userName" placeholder="Nhập tên người bàn giao">
-    <input id="orderId" placeholder="Nhập mã vận đơn (Enter để Scan)">
+    <input id="userName" type="text" placeholder="Nhập tên người bàn giao" spellcheck="false">
+    <input id="orderId" type="text" placeholder="Nhập mã vận đơn (Enter để Scan)" spellcheck="false">
     <button id="btnNextBatch" class="btn-action">Next batch</button>
     <button id="btnReport" class="btn-report">Report</button>
   </div>
 
   <!-- ===== Report + Delete ===== -->
   <div id="reporting">
-    <input id="deleteBox" placeholder="Nhập mã đơn cần xoá">
+    <input id="deleteBox" type="text" placeholder="Nhập mã đơn cần xoá" spellcheck="false">
     <button id="btnDelete" class="btn-action btn-danger">Delete</button>
   </div>
 </div>
@@ -33,36 +35,31 @@
   <div class="row mt-2">
     <label>Ngày:</label>
     <input id="datePicker" type="date">
-    <input id="searchBox" placeholder="Tìm theo mã đơn/user...">
+    <input id="searchBox" type="text" placeholder="Tìm theo mã đơn/user..." spellcheck="false">
     <button id="btnSearch" class="btn-action">Search</button>
     <button id="btnReset" class="btn-action">Reset</button>
   </div>
-</div>
 
 <!-- Inline style removed; using static/css/main.css -->
 
-<!-- ===== Notice ===== -->
-<div id="notice" class="notice"></div>
 
-<!-- ===== Dual Tables: Scan (left) & Cancel (right) ===== -->
+
+<!-- ===== Dual Tables: Cancel (left) & Scan (right) ===== -->
 <div id="tablesWrap">
-  <!-- SCAN TABLE -->
-  <section id="scanSection">
-  <div class="row" style="margin-bottom:6px">
-  <h3>
-        <!-- SCAN -->
-        <span id="scanStats" class="scan-stats"></span>
-      </h3>
-  <div class="row ml-auto">
-        <span>Page:</span>
-        <button id="scanPrev">«</button>
-        <span id="scanPageDisplay">1/1</span>
-        <button id="scanNext">»</button>
+  <!-- CANCEL TABLE (bên trái) -->
+  <section id="cancelSection">
+    <div class="row" style="margin-bottom:6px">
+      <h3>
+  Đơn Huỷ <span id="cancelCountsHdr"></span>
+  </h3>
+          <div class="row ml-auto">
+        <button id="cancelPrev">«</button>
+        <span id="cancelPageDisplay">1/1</span>
+        <button id="cancelNext">»</button>
       </div>
     </div>
-
     <div class="table-scroll card" style="padding:0">
-      <table id="tblScan">
+      <table id="tblCancel">
         <thead>
           <tr>
             <th>No.</th>
@@ -77,21 +74,22 @@
     </div>
   </section>
 
-  <!-- CANCEL TABLE -->
-  <section id="cancelSection">
-    <div class="row" style="margin-bottom:6px">
-      <h3>
-  Đơn Huỷ <span id="cancelCountsHdr"></span>
-  </h3>
-      <div class="row ml-auto">
-        <span>Page:</span>
-        <button id="cancelPrev">«</button>
-        <span id="cancelPageDisplay">1/1</span>
-        <button id="cancelNext">»</button>
+  <!-- SCAN TABLE (bên phải) -->
+  <section id="scanSection">
+  <div class="row" style="margin-bottom:6px">
+  <h3>
+        <!-- SCAN -->
+        <span id="scanStats" class="scan-stats"></span>
+      </h3>
+  <div class="row ml-auto">
+        <button id="scanPrev">«</button>
+        <span id="scanPageDisplay">1/1</span>
+        <button id="scanNext">»</button>
       </div>
     </div>
+
     <div class="table-scroll card" style="padding:0">
-      <table id="tblCancel">
+      <table id="tblScan">
         <thead>
           <tr>
             <th>No.</th>
@@ -192,20 +190,31 @@
   return `${y}-${M}-${dd} ${hh}:${mm}:${ss}`;
 }
 
-  const notice = (msg, kind="info", timeout=6000) => {
+  const notice = (msg, kind="info", timeout=0) => {
     const bar = $("#notice");
-    const styles = {
-      info: "color:#31708f;",
-      success: "color:#3c763d;font-weight:600;",
-      warning: "color:#8a6d3b;font-weight:600;",
-      error: "color:#a94442;font-weight:600;"
-    };
-    bar.style.cssText += styles[kind] || styles.info;
-    bar.textContent = msg || "";
-    if (timeout>0) setTimeout(()=>bar.textContent="", timeout);
-  };
+    if (!bar) return;
 
-  // ===== State =====
+    // Clear previous classes and styles
+    bar.className = "notice";
+    bar.removeAttribute("data-kind");
+
+    if (msg) {
+      bar.setAttribute("data-kind", kind);
+      bar.textContent = msg;
+
+      // Chỉ tự động xóa nếu timeout > 0 và không phải là error
+      if (timeout > 0 && kind !== "error") {
+        setTimeout(() => {
+          if (bar.textContent === msg) { // Chỉ xóa nếu nội dung chưa thay đổi
+            bar.textContent = "";
+            bar.removeAttribute("data-kind");
+          }
+        }, timeout);
+      }
+    } else {
+      bar.textContent = "";
+    }
+  };  // ===== State =====
   let ALL_EVENTS = {};     // { DATA_SCAN, Data-cancel }
   let CANCEL_MAP = {};     // TRACKING -> { cancel_time, channel }
   let currentBatchByCh = { SPX:1, GHN:1, NJV:1 };
@@ -242,11 +251,11 @@
  // ===== Sound Manager (đọc từ static/, giống v4.5.2) =====
 // URL tuyệt đối do Flask build (đúng cả khi đổi static_url_path).
 const STATIC_AUDIO_URLS = {
-  "cancel.mp3":      "{{ url_for('static', filename='cancel.mp3') }}",
-  "error.mp3":       "{{ url_for('static', filename='error.mp3') }}",
-  "ok.mp3":          "{{ url_for('static', filename='ok.mp3') }}",
-  "sys_error.mp3":   "{{ url_for('static', filename='sys_error.mp3') }}",
-  "sys_success.mp3": "{{ url_for('static', filename='sys_success.mp3') }}"
+  "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
+  "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
+  "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
+  "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
+  "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
 };
 
 // Map key logic -> file (giống tool PC)
@@ -277,7 +286,7 @@ function resetAll(){
   const chGroup = el.chanGroup;
   if (chGroup){
     chGroup.dataset.active = "SPX";
- slice.forEach(([id, ev]) => {
+    chGroup.querySelectorAll(".btn-toggle").forEach(b => {
       b.classList.toggle("active", b.dataset.val==="SPX");
     });
   }
@@ -290,15 +299,9 @@ function resetAll(){
 
   // reset date về hôm nay
   SELECTED_ISO = todayISO();
-   const tr = document.createElement("tr");
-   const bgClass = isYes ? "bg-yes" : (isNo ? "bg-no" : "");
-   tr.innerHTML = \`
-     <td>${sttGlobal}</td>
-     <td>${id}</td>
-     <td>${scanTimeText}</td>
-     <td>${hasScan ? (ev.user || "") : ""}</td>
-     <td class="${bgClass}">${isCanceledAtScan || "-"}</td>
-   \`;
+  SELECTED_KEY = today();
+  if (el.datePicker) el.datePicker.value = SELECTED_ISO;
+
   renderBoth();
 
   // nhảy về trang cuối cùng của SPX
@@ -765,11 +768,50 @@ const scanStateByCh = {
 const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
 const toInt = v => Math.max(1, parseInt(v, 10) || 1);
 
+// Helper functions to update pagination without re-rendering
+function updateScanPagination() {
+  const totalPages = getScanTotalPages();
+  if (el2.scanPageDisp) el2.scanPageDisp.textContent = `${scanPageIndex}/${totalPages}`;
+
+  if (scanPageIndex === 1 && totalPages === 1) {
+    if (el2.scanPrev) el2.scanPrev.disabled = true;
+    if (el2.scanNext) el2.scanNext.disabled = true;
+  } else if (scanPageIndex === 1 && scanPageIndex < totalPages) {
+    if (el2.scanPrev) el2.scanPrev.disabled = true;
+    if (el2.scanNext) el2.scanNext.disabled = false;
+  } else if (scanPageIndex === totalPages && scanPageIndex > 1) {
+    if (el2.scanPrev) el2.scanPrev.disabled = false;
+    if (el2.scanNext) el2.scanNext.disabled = true;
+  } else {
+    if (el2.scanPrev) el2.scanPrev.disabled = false;
+    if (el2.scanNext) el2.scanNext.disabled = false;
+  }
+}
+
+function updateCancelPagination() {
+  const totalPages = getCancelTotalPages();
+  if (el2.cancelPageDisp) el2.cancelPageDisp.textContent = `${cancelPageIndex}/${totalPages}`;
+
+  if (cancelPageIndex === 1 && totalPages === 1) {
+    if (el2.cancelPrev) el2.cancelPrev.disabled = true;
+    if (el2.cancelNext) el2.cancelNext.disabled = true;
+  } else if (cancelPageIndex === 1 && cancelPageIndex < totalPages) {
+    if (el2.cancelPrev) el2.cancelPrev.disabled = true;
+    if (el2.cancelNext) el2.cancelNext.disabled = false;
+  } else if (cancelPageIndex === totalPages && cancelPageIndex > 1) {
+    if (el2.cancelPrev) el2.cancelPrev.disabled = false;
+    if (el2.cancelNext) el2.cancelNext.disabled = true;
+  } else {
+    if (el2.cancelPrev) el2.cancelPrev.disabled = false;
+    if (el2.cancelNext) el2.cancelNext.disabled = false;
+  }
+}
+
 // Scan
 function setScanPage(n){
   const totalPages = getScanTotalPages();
   scanPageIndex = Math.min(Math.max(1, Number(n)||1), totalPages);
-  if (el2.scanPageDisp) el2.scanPageDisp.textContent = `${scanPageIndex}/${totalPages}`;
+  updateScanPagination();
   renderScan();
 }
 on(el2?.scanPrev, "click", () => setScanPage(scanPageIndex - 1));
@@ -783,7 +825,7 @@ function getCancelTotalPages(){
 function setCancelPage(n){
   const totalPages = getCancelTotalPages();
   cancelPageIndex = Math.min(Math.max(1, Number(n)||1), totalPages);
-  if (el2.cancelPageDisp) el2.cancelPageDisp.textContent = `${cancelPageIndex}/${totalPages}`;
+  updateCancelPagination();
   renderCancel();
 }
 on(el2?.cancelPrev, "click", () => setCancelPage(cancelPageIndex - 1));
@@ -874,28 +916,29 @@ function renderScan(){
   if (el2.scanPageDisp) el2.scanPageDisp.textContent = `${scanPageIndex}/${totalPages}`;
 
   // === Render ===
-  el2.tblScanBody.innerHTML = "";
-  for (let i = end - 1; i >= start; i--) {
-    const [id, ev] = rowsFiltered[i];
+  if (el2.tblScanBody) {
+    el2.tblScanBody.innerHTML = "";
+    for (let i = end - 1; i >= start; i--) {
+      const [id, ev] = rowsFiltered[i];
 
-    // STT toàn cục đúng, giảm dần: i là index 0-based → STT = i + 1
-    const sttGlobal = i + 1;
+      // STT toàn cục đúng, giảm dần: i là index 0-based → STT = i + 1
+      const sttGlobal = i + 1;
 
-    const tr = document.createElement("tr");
-    const bgClass = (ev.is_cancelled==="Yes" && (ev.time_vn || ev.ts)) ? "bg-yes" : (ev.is_cancelled==="No" ? "bg-no" : "");
-    tr.innerHTML = `
-      <td>${sttGlobal}</td>
-      <td>${id}</td>
-      <td>${ev.time_vn || ""}</td>
-      <td>${ev.user || ""}</td>
-      <td class="${bgClass}">${ev.is_cancelled || "No"}</td>
-    `;
-    el2.tblScanBody.appendChild(tr);
-  };
+      const tr = document.createElement("tr");
+      const bgClass = (ev.is_cancelled==="Yes" && (ev.time_vn || ev.ts)) ? "bg-yes" : (ev.is_cancelled==="No" ? "bg-no" : "");
+      tr.innerHTML = `
+        <td>${sttGlobal}</td>
+        <td>${id}</td>
+        <td>${ev.time_vn || ""}</td>
+        <td>${ev.user || ""}</td>
+        <td class="${bgClass}">${ev.is_cancelled || "No"}</td>
+      `;
+      el2.tblScanBody.appendChild(tr);
+    }
+  }
 
   // “m/100”
-  const scanShowEl = document.getElementById("scanShow");
-  if (scanShowEl) scanShowEl.textContent = `${slice.length}/${PAGE_SIZE}`;
+
 }
 
 // ==== Paging cho bảng Cancel ====
@@ -925,31 +968,33 @@ function renderCancel(){
   const start = (cancelPageIndex - 1) * PAGE_SIZE;
   const slice = rowsSorted.slice(start, start + PAGE_SIZE);
 
-el2.tblCancelBody.innerHTML = "";
-slice.forEach(([id, ev], idx) => {
-  // STT toàn cục giảm dần (mới nhất có số lớn nhất, giống Scan)
-  const sttGlobal = total - (start + idx);
+if (el2.tblCancelBody) {
+  el2.tblCancelBody.innerHTML = "";
+  slice.forEach(([id, ev], idx) => {
+    // STT toàn cục giảm dần (mới nhất có số lớn nhất, giống Scan)
+    const sttGlobal = total - (start + idx);
 
-  const hasScan = !!(ev.scan_ts || ev.time_vn || ev.user);
-  const scanTimeText = hasScan
-    ? (ev.time_vn || (ev.scan_ts ? formatISO(ev.scan_ts * 1000) : ""))
-    : "";
+    const hasScan = !!(ev.scan_ts || ev.time_vn || ev.user);
+    const scanTimeText = hasScan
+      ? (ev.time_vn || (ev.scan_ts ? formatISO(ev.scan_ts * 1000) : ""))
+      : "";
 
-  const isCanceledAtScan = hasScan ? (ev.is_cancelled || "No") : "";
-  const isYes = (isCanceledAtScan === "Yes");
-  const isNo  = (isCanceledAtScan === "No");
+    const isCanceledAtScan = hasScan ? (ev.is_cancelled || "No") : "";
+    const isYes = (isCanceledAtScan === "Yes");
+    const isNo  = (isCanceledAtScan === "No");
 
-  const tr = document.createElement("tr");
-  const bgClass = isYes ? "bg-yes" : (isNo ? "bg-no" : "");
-  tr.innerHTML = `
-    <td>${sttGlobal}</td>
-    <td>${id}</td>
-    <td>${scanTimeText}</td>
-    <td>${hasScan ? (ev.user || "") : ""}</td>
-    <td class="${bgClass}">${isCanceledAtScan || "-"}</td>
-  `;
-  el2.tblCancelBody.appendChild(tr);
-});
+    const tr = document.createElement("tr");
+    const bgClass = isYes ? "bg-yes" : (isNo ? "bg-no" : "");
+    tr.innerHTML = `
+      <td>${sttGlobal}</td>
+      <td>${id}</td>
+      <td>${scanTimeText}</td>
+      <td>${hasScan ? (ev.user || "") : ""}</td>
+      <td class="${bgClass}">${isCanceledAtScan || "-"}</td>
+    `;
+    el2.tblCancelBody.appendChild(tr);
+  });
+}
 
   // Cập nhật header đếm
   const ch = selectedChannel();
@@ -959,6 +1004,8 @@ slice.forEach(([id, ev], idx) => {
   const totalCancelFromSrc = Object.keys(cancelSrcCh).length;
   const cancelHdr = document.getElementById("cancelCountsHdr");
   if (cancelHdr) cancelHdr.textContent = `(${totalCancelInScan} / ${totalCancelFromSrc})`;
+
+
 }
 
 // Render 2 bảng
@@ -995,14 +1042,17 @@ function renderBoth(){
   const cancelSrcCh = ALL_EVENTS["Data-cancel"]?.[ch] || {};
   const totalCancelInScan  = Object.values(scanAllCh).filter(x => x?.is_cancelled==="Yes").length;
   const totalCancelFromSrc = Object.keys(cancelSrcCh).length;
-  document.getElementById("cancelCountsHdr").textContent = `${totalCancelInScan} / ${totalCancelFromSrc}`;
+  const cancelCountsHdr = document.getElementById("cancelCountsHdr");
+  if (cancelCountsHdr) cancelCountsHdr.textContent = `${totalCancelInScan} / ${totalCancelFromSrc}`;
 
   // render 2 bảng
   try{ renderScan(); }catch(e){ console.warn("[renderScan] skip:", e); }
   try{ renderCancel(); }catch(e){ console.warn("[renderCancel] skip:", e); }
-}
 
-/* === REALTIME LISTENERS === */
+  // Cập nhật lại pagination buttons sau khi có dữ liệu
+  updateScanPagination();
+  updateCancelPagination();
+}/* === REALTIME LISTENERS === */
 let unsubs = { batch: null, data: null, cancel: null };
 
 function listenBatch(dateKey){
