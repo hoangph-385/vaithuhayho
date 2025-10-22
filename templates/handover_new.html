@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Handover Tool - Vaithuhayho{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/handover.css') }}">
+{% endblock %}
+
+{% block content %}
+<h1>Handover Tool</h1>
+
+<!-- API Base Config -->
+<script>
+  window.API_BASE = window.API_BASE || "";
+</script>
+
+<!-- Controls -->
+<div id="controls">
+  <label>Channel:</label>
+  <div id="channelGroup" class="btn-group" data-active="SPX">
+    <button type="button" data-val="SPX" class="btn-toggle active">SPX</button>
+    <button type="button" data-val="GHN" class="btn-toggle">GHN</button>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center">
+    <input id="userName" placeholder="Nhập tên người bàn giao" style="padding:6px 10px;min-width:200px">
+    <input id="orderId" placeholder="Nhập mã vận đơn (Enter để Scan)" style="padding:6px 10px;min-width:300px">
+    <button id="btnNextBatch" class="btn-action">Next batch</button>
+    <button id="btnReport" class="btn-report">Report</button>
+  </div>
+
+  <div id="reporting">
+    <input id="deleteBox" placeholder="Nhập mã đơn cần xoá" style="padding:6px 10px;min-width:200px">
+    <button id="btnDelete" class="btn-action btn-danger">Delete</button>
+  </div>
+</div>
+
+<!-- Date & Search -->
+<div style="display:flex;gap:10px;align-items:center;margin-top:15px;margin-left:30px">
+  <label>Ngày:</label>
+  <input id="datePicker" type="date" style="padding:6px 10px">
+  <input id="searchBox" placeholder="Tìm theo mã đơn/user..." style="padding:6px 10px;min-width:240px">
+  <button id="btnSearch" class="btn-action">Search</button>
+  <button id="btnReset" class="btn-action">Reset</button>
+</div>
+
+<!-- Notice -->
+<div id="notice" class="notice"></div>
+
+<!-- Tables -->
+<div id="tablesWrap">
+  <!-- SCAN TABLE -->
+  <section id="scanSection">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <h3 style="margin:0;width:100%;text-align:center">
+        <span id="scanStats" class="scan-stats"></span>
+      </h3>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <span>Page:</span>
+        <button id="scanPrev">«</button>
+        <span id="scanPageDisplay">1/1</span>
+        <button id="scanNext">»</button>
+      </div>
+    </div>
+
+    <div style="overflow:auto;border-radius:8px;background:#fff">
+      <table id="tblScan">
+        <thead>
+          <tr style="background:#f0f0f0">
+            <th style="padding:8px;border-bottom:1px solid #ddd">No.</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Mã Đơn</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Scan Time</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">User</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Cancel?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CANCEL TABLE -->
+  <section id="cancelSection">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <h3 style="margin:0;width:100%;text-align:center">
+        Đơn Huỷ <span id="cancelCountsHdr" style="font-weight:normal;color:#555"></span>
+      </h3>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <span>Page:</span>
+        <button id="cancelPrev">«</button>
+        <span id="cancelPageDisplay">1/1</span>
+        <button id="cancelNext">»</button>
+      </div>
+    </div>
+
+    <div style="overflow:auto;border-radius:8px;background:#fff">
+      <table id="tblCancel">
+        <thead>
+          <tr style="background:#f0f0f0">
+            <th style="padding:8px;border-bottom:1px solid #ddd">No.</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Mã Đơn</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Scan Time</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">User</th>
+            <th style="padding:8px;border-bottom:1px solid #ddd">Cancel?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Firebase SDKs -->
+<script type="module" src="{{ url_for('static', filename='js/handover.js') }}"></script>
+
+<!-- Inline Firebase initialization for now -->
+<script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getDatabase, ref, get, set, remove, onValue,
+    goOffline, goOnline
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCdSInR5JXWsFCZl3ygdoEeSRra6_wGrW4",
+    authDomain: "handover-4.firebaseapp.com",
+    databaseURL: "https://handover-4-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "handover-4",
+    storageBucket: "handover-4.firebasestorage.app",
+    messagingSenderId: "935608155206",
+    appId: "1:935608155206:web:4abc6a60e1736399571e47",
+    measurementId: "G-FVKZLCE7DB"
+  };
+
+  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Export to window for access
+  window.HandoverDB = db;
+
+  console.log('[Handover] Firebase initialized');
+</script>
+{% endblock %}

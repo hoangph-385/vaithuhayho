@@ -1,0 +1,727 @@
+/* Main CSS for Vaithuhayho Web App - All Styles */
+
+:root {
+  --accent: #ff8a00;
+  --primary: #0d47a1;
+  --bg-color: #f5f5f5;
+  --card-bg: #fff;
+  --text-color: #333;
+  --border-color: #ccc;
+  --header-bg: #111;
+  --success: #0ce90c;
+  --error: #f30d0d;
+  --warning: #d37938;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* ========== Header Navigation ========== */
+header {
+  background: var(--header-bg);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+header a {
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  position: relative;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+header a:hover {
+  background: #222;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 8px;
+  text-decoration-color: var(--accent);
+}
+
+header a.active {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 8px;
+  text-decoration-color: var(--accent);
+}
+
+header a.active:hover {
+  background: #1a1a1a;
+}
+
+/* ========== Main Content ========== */
+main {
+  padding: 24px;
+  width: 90%;
+  margin: 0 auto;
+}
+
+/* ========== Buttons ========== */
+.btn-group {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.btn-toggle {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--border-color);
+  cursor: pointer;
+  min-width: 64px;
+  transition: all 0.2s;
+}
+
+.btn-toggle.active {
+  background: #ffb116;
+  color: #000409;
+  border-color: #ffffff;
+  font-weight: 600;
+}
+
+.btn-toggle:hover {
+  background: #e6f0ff;
+  border-color: #ce8c06ee;
+  color: #ce8c06ee;
+}
+
+.btn-action {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #f8f8f8;
+  cursor: pointer;
+  min-width: 80px;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-action:hover {
+  background: #e6f0ff;
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.btn-primary {
+  background: #1677ff;
+  color: #fff;
+  border-color: #1677ff;
+}
+
+.btn-primary:hover {
+  background: #125ecc;
+}
+
+.btn-danger {
+  background: #ff4d4f;
+  color: #fff;
+  border-color: #ff4d4f;
+}
+
+.btn-danger:hover {
+  background: #cc3c3d;
+  border-color: #cc3c3d;
+  text-decoration: underline;
+}
+
+.btn-report {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #4570d5;
+  color: #fff;
+  cursor: pointer;
+  min-width: 80px;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-report:hover {
+  background: #e6f0ff;
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #0d47a1;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ========== Notice/Alert Box ========== */
+.notice {
+  margin: 16px 0;
+  padding: 10px 12px;
+  background: var(--warning);
+  border: 1px solid #FFA500;
+  border-radius: 6px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.notice[data-kind="success"] {
+  color: #3c763d;
+  font-weight: 700;
+  background: var(--success);
+  border-color: #3c763d;
+}
+
+.notice[data-kind="error"] {
+  color: #a94442;
+  font-weight: 700;
+  background: var(--error);
+  border-color: #a94442;
+}
+
+/* ========== Input Fields ========== */
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input.big {
+  font-size: 20px;
+  padding: 10px 12px;
+}
+
+label {
+  font-size: 14px;
+  color: #555;
+}
+
+/* ========== Tables ========== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+}
+
+table th {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  background: #f0f0f0;
+  font-weight: 600;
+}
+
+table td {
+  padding: 6px;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+}
+
+/* ========== Scan Tool Specific ========== */
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.row.space-between { justify-content: space-between; }
+.row.end { justify-content: flex-end; }
+.ml-auto { margin-left: auto; }
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 14px;
+}
+
+.tab-btn {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-btn.active {
+  background: #e8f0ff;
+  color: #0d47a1;
+  border-color: #b6ccff;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  padding: 14px;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.kpi {
+  text-align: center;
+  font-weight: 800;
+}
+
+.muted {
+  opacity: 0.72;
+}
+
+.grow {
+  flex: 1;
+}
+
+.avatar {
+  width: 140px;
+  height: 140px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  object-fit: cover;
+  background: #fafafa;
+}
+
+.counter {
+  background: #FFF2CC;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.counter h3 {
+  margin: 0 0 8px;
+  color: brown;
+}
+
+.stats-line {
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.task-block {
+  background: #FFF2CC;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.task-block .task-hdr {
+  font: 700 16px/1.3 Arial, sans-serif;
+  color: brown;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.task-block .task-line {
+  font: 500 13px/1.5 Arial, sans-serif;
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========== Handover Tool Specific ========== */
+#controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#controls > * {
+  min-width: 0;
+}
+
+#reporting {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: 30px;
+}
+
+#tablesWrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  gap: 12px;
+  align-items: start;
+}
+
+#cancelSection {
+  grid-area: cancel;
+}
+
+#scanSection {
+  grid-area: scan;
+}
+
+#scanSection h3,
+#cancelSection h3 {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(14px, 2.6vw, 18px);
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#cancelCountsHdr,
+#scanSection .scan-stats span,
+#cancelSection .cancel-stats span {
+  font-weight: normal;
+  color: #555;
+  font-size: 0.9em;
+}
+
+.scan-stats,
+.cancel-stats {
+  display: inline-flex;
+  gap: 15px;
+  margin-left: 0;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.scan-stats > span,
+.cancel-stats > span {
+  white-space: nowrap;
+  text-align: center;
+}
+
+#tblScan,
+#tblCancel {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tblScan tbody,
+#tblCancel tbody {
+  display: block;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+#tblScan thead,
+#tblScan tbody tr,
+#tblCancel thead,
+#tblCancel tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+#scanSection > div:last-of-type,
+#cancelSection > div:last-of-type {
+  flex-wrap: nowrap;
+}
+
+/* ========== Utility Classes ========== */
+.multiline {
+  white-space: pre-line;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mb-2 {
+  margin-bottom: 16px;
+}
+
+.mt-2 {
+  margin-top: 16px;
+}
+
+/* ========== Responsive Design ========== */
+@media (min-width: 1201px) {
+  #tablesWrap { grid-template-columns: 4fr 6fr; }
+}
+
+@media (max-width: 900px) {
+  main {
+    padding: 16px;
+  }
+
+  header {
+    flex-wrap: wrap;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  #tablesWrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  #controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  #controls input,
+  #reporting input,
+  #controls button,
+  #reporting button {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  #reporting {
+    margin-left: 0 !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .btn-action,
+  .btn-report,
+  .btn-toggle {
+    padding: 5px 8px !important;
+  }
+
+  #tblScan th,
+  #tblScan td,
+  #tblCancel th,
+  #tblCancel td {
+    font-size: 11px !important;
+  }
+
+  #cancelCountsHdr,
+  #scanSection .scan-stats span,
+  #cancelSection .cancel-stats span {
+    font-size: 0.85em;
+  }
+}
+
+@media (max-width: 360px) {
+  #tblScan th,
+  #tblScan td,
+  #tblCancel th,
+  #tblCancel td {
+    font-size: 10px !important;
+    padding: 2px 3px !important;
+  }
+
+  #scanSection h3,
+  #cancelSection h3 {
+    font-size: 13px;
+  }
+}
+
+/* ========== Scan Tool Page Specific Styles ========== */
+/* avatar already defined above; keep page-specific margins minimal */
+.avatar { margin-top: 8px; }
+
+.counter {
+  background: #FFF2CC;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.counter h3 {
+  margin: 0 0 8px;
+  color: brown;
+}
+
+.stats-line {
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+#in-shifts .block {
+  margin-bottom: 20px;
+}
+
+#in-shifts .vendors,
+#in-vendor-stats.vendors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  white-space: nowrap;
+}
+
+#in-shifts .vendors span,
+#in-vendor-stats.vendors span {
+  white-space: nowrap;
+}
+
+.task-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.task-kpi .kpi-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.task-kpi .kpi-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.task-kpi .kpi-value {
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.task-kpi .kpi-sub {
+  font-size: 12px;
+  color: #777;
+  margin-top: 4px;
+}
+
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.task-block {
+  background: #FFF2CC;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.task-block .task-hdr {
+  color: brown;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.task-block .task-line {
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#tab-task .counter.card {
+  position: sticky;
+  top: 8px;
+}
+
+html.busy {
+  cursor: progress;
+}
+
+html.busy * {
+  cursor: progress !important;
+}
+
+/* Scan page specific grid layout */
+#tab-scan .card .grid-2 > div:first-child,
+#tab-task .card .grid-2 > div:first-child {
+  --label-w: 140px;
+  max-width: 520px;
+}
+
+#task60-card h3,
+#task30-card h3 {
+  white-space: nowrap;
+}
+
+#tab-scan .card .grid-2 > div:first-child .row,
+#tab-task .card .grid-2 > div:first-child .row {
+  display: grid;
+  grid-template-columns: var(--label-w) 1fr;
+  align-items: center;
+  column-gap: 12px;
+  margin: 15px 0;
+}
+
+#tab-scan .card .grid-2 > div:first-child label,
+#tab-task .card .grid-2 > div:first-child label {
+  text-align: right;
+  padding-right: 8px;
+  font-weight: 600;
+}
+
+#tab-scan .card .grid-2 > div:first-child .grow,
+#tab-task .card .grid-2 > div:first-child .grow {
+  text-align: left;
+  min-width: 160px;
+}
+
+@media (max-width: 700px) {
+  #tab-scan .card .grid-2 > div:first-child,
+  #tab-task .card .grid-2 > div:first-child {
+    --label-w: 110px;
+    max-width: 100%;
+  }
+}
+
+/* Layout tweaks to balance Scan panels and prevent overflow */
+#tab-scan.grid.grid-2 { grid-template-columns: 2fr 1fr; }
+#tab-task.grid.grid-2 { grid-template-columns: 2fr 1fr; }
+
+/* Inputs sizing for scan header */
+#dayPicker { min-width: 170px; }
+#hour { width: 80px; }
+#minute { width: 80px; }
+#task-wfm { min-width: 320px; }
+
+/* Dashboard table container to avoid spill */
+.table-wrap { padding: 8px; }
+.title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.table-scroll { overflow: auto; max-width: 100%; }
+table.table { width: 100%; border-collapse: collapse; }
+table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-index: 2; }
+.pager { display:flex; gap:8px; align-items:center; padding: 8px 0; flex-wrap: wrap; }
+.pager .jump { width: 80px; }
+
+/* Basic link/list styling to replace inline */
+.prose ul { line-height: 1.8; }
+.prose a { color: var(--primary); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+
+/* Status backgrounds */
+.bg-yes { background: #ffebeb; }
+.bg-no  { background: #ebffeb; }

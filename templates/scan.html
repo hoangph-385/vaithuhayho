@@ -1,0 +1,1223 @@
+{% extends "base.html" %}
+{% block title %}Scan Tool{% endblock %}
+{% block content %}
+
+<script>
+  window.API_BASE = window.API_BASE || "";
+</script>
+
+
+
+  <div id="notice" class="notice" data-kind="success"></div>
+
+  <div class="row card space-between">
+    <div class="row">
+      <label>Ngày</label>
+      <input id="dayPicker" type="date">
+      <label>Warehouse</label>
+      <select id="warehouse"><option>VNDB</option></select>
+      <label>Ca</label>
+      <div class="row">
+        <input id="hour" type="number" min="0" max="23">
+        <span>:</span>
+        <select id="minute"><option>00</option><option>30</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="scan">SCAN IN/OUT</button>
+    <button class="tab-btn" data-tab="task">SCAN TASK</button>
+    <button class="tab-btn" data-tab="dash">DASHBOARD</button>
+  </div>
+
+  <!-- ========================== PANEL: SCAN ========================== -->
+  <section id="tab-scan" class="tab-panel grid grid-2">
+    <div class="grid">
+      <!-- IN -->
+      <div class="card">
+        <div class="row">
+          <input id="in-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
+          <button id="btnScanIn">Scan In</button>
+        </div>
+        <hr>
+        <div class="grid grid-2">
+          <div>
+            <div class="kpi" id="in-fullname"></div>
+            <div class="row"><label>Nhà thầu:</label> <div id="in-vendor" class="grow"></div></div>
+            <div class="row"><label>Mã Vendor:</label> <div id="in-vendor-code" class="grow"></div></div>
+            <div class="row"><label>Giới tính:</label> <div id="in-gender" class="grow"></div></div>
+            <div class="row"><label>Năm sinh:</label> <div id="in-birth" class="grow"></div></div>
+            <div class="row"><label>Operator:</label> <div id="in-operator" class="grow"></div></div>
+            <div class="row"><label>WMS ID:</label> <div id="in-wmsid" class="grow"></div></div>
+          </div>
+          <div class="row end">
+            <img id="in-avatar" class="avatar" alt="avatar">
+          </div>
+        </div>
+      </div>
+
+      <!-- OUT -->
+      <div class="card">
+        <div class="row">
+          <input id="out-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
+          <button id="btnScanOut">Scan Out</button>
+        </div>
+        <hr>
+        <div class="grid grid-2">
+          <div>
+            <div class="kpi" id="out-fullname"></div>
+            <div class="row"><label>Nhà thầu:</label> <div id="out-vendor" class="grow"></div></div>
+            <div class="row"><label>Mã Vendor:</label> <div id="out-vendor-code" class="grow"></div></div>
+            <div class="row"><label>Giới tính:</label> <div id="out-gender" class="grow"></div></div>
+            <div class="row"><label>Năm sinh:</label> <div id="out-birth" class="grow"></div></div>
+            <div class="row"><label>Operator:</label> <div id="out-operator" class="grow"></div></div>
+            <div class="row"><label>WMS ID:</label> <div id="out-wmsid" class="grow"></div></div>
+          </div>
+          <div class="row end">
+            <img id="out-avatar" class="avatar" alt="avatar">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Counter phải -->
+    <div class="grid">
+      <div class="counter card">
+        <h3 id="in-total">Total In: 1</h3>
+        <div id="in-shifts"><div class="block">
+          <div class="stats-line"><strong>Ca 13:30 - 1</strong></div>
+          <div class="stats-line vendors"><span>GRGR: 1</span></div>
+        </div></div>
+        <hr>
+        <div id="in-vendor-stats" class="stats-line vendors"><span>GRGR: 1</span></div>
+      </div>
+
+      <div class="counter card">
+        <h3 id="out-total">Total Out: 1 / 1</h3>
+        <div id="out-shifts"><div class="stats-line">Ca 13:30  --  1 / 1</div></div>
+        <hr>
+        <div id="out-vendor-stats" class="stats-line"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== PANEL: TASK ========================== -->
+  <section id="tab-task" class="tab-panel grid grid-2 is-hidden">
+    <div class="grid">
+      <div class="card row">
+        <input id="task-wfm" class="big grow" placeholder="Scan Mã QR hoặc WFM">
+        <select id="task-type">
+          <option value="A0027">Nghỉ Trưa</option>
+          <option value="A0020">Vào Ca</option>
+          <option value="A0026">Nghỉ OT</option>
+        </select>
+        <button id="btnScanTask">SCAN</button>
+        <div id="task-result" class="kpi ml-auto"></div>
+      </div>
+
+      <div class="card">
+        <div class="grid grid-2">
+          <div>
+            <div class="kpi" id="task-fullname"></div>
+            <div class="row"><label>Nhà thầu:</label>  <div id="task-vendor" class="grow"></div></div>
+            <div class="row"><label>Mã Vendor:</label> <div id="task-vendor-code" class="grow"></div></div>
+            <div class="row"><label>Giới tính:</label> <div id="task-gender" class="grow"></div></div>
+            <div class="row"><label>Năm sinh:</label> <div id="task-birth" class="grow"></div></div>
+            <div class="row"><label>Operator:</label> <div id="task-operator" class="grow"></div></div>
+            <div class="row"><label>WMS ID:</label>   <div id="task-wmsid" class="grow"></div></div>
+          </div>
+          <div class="row end">
+            <img id="task-avatar" class="avatar" alt="avatar">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Counter phải -->
+    <div class="grid" id="task-right">
+      <div class="counter card" id="task60-card">
+        <h3>Nghỉ Trưa: 1 / Vào Ca: 1 / Total: 1</h3>
+        <div id="task60-total" class="stats-line is-hidden"></div>
+        <div id="task60-shifts"><div class="stats-line">Ca 13:30 — 1 / 1 / 1</div></div>
+        <hr>
+        <div id="task60-vendor-stats" class="stats-line"></div>
+      </div>
+
+      <div class="counter card" id="task30-card">
+        <h3>Nghỉ OT: 1 / Vào Ca: 1 / Total: 1</h3>
+        <div id="task30-total" class="stats-line is-hidden"></div>
+        <div id="task30-shifts"><div class="stats-line">Ca 13:30 — 1 / 1 / 1</div></div>
+        <hr>
+        <div id="task30-vendor-stats" class="stats-line"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== PANEL: DASHBOARD ========================== -->
+  <section id="tab-dash" class="tab-panel is-hidden">
+    <div class="table-wrap card">
+  <div class="title">
+    <span>Dashboard nhân sự</span>
+    <button id="btnExportXlsx" title="Tải Excel">Export Excel</button>
+  </div>
+
+
+      <div class="table-scroll">
+        <table class="table" id="tbl-dashboard">
+          <thead>
+            <tr>
+              <th class="sticky">STT</th>
+              <th class="sticky">Nhà Thầu</th>
+              <th class="sticky">Mã Vendor</th>
+              <th class="sticky">Mã WFM</th>
+              <th class="sticky">Mã WMS</th>
+              <th class="sticky">Operator</th>
+              <th class="sticky">Họ và Tên</th>
+              <th class="sticky">Giới tính</th>
+              <th class="sticky">Năm sinh</th>
+              <th class="sticky">Time in</th>
+              <th class="sticky">Nghỉ Trưa</th>
+              <th class="sticky">Vào Ca Trưa</th>
+              <th class="sticky">Nghỉ OT</th>
+              <th class="sticky">Vào Ca OT</th>
+              <th class="sticky">Time Out</th>
+            </tr>
+            <tr class="filter-row">
+              <th></th>
+              <th><input class="col-filter" data-col="vendor_name" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="vendor_code" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="wfm_code" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="wms_user_id" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="operator" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="fullname" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="gender" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="birth_year" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="gsheet_time_in" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="break_60" placeholder="Lọc..."></th>
+                            <th><input class="col-filter" data-col="break_60_in" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="break_30" placeholder="Lọc..."></th>
+
+              <th><input class="col-filter" data-col="break_30_in" placeholder="Lọc..."></th>
+              <th><input class="col-filter" data-col="gsheet_time_out" placeholder="Lọc..."></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-dash"><tr><td>1</td><td>GRGR</td><td>SPGRG02305</td><td>S098484</td><td>466404</td><td>Đà Nẵng_NGUYỄN THỊ KHÁNH LY_GRGR001</td><td>NGUYỄN THỊ KHÁNH LY</td><td>NỮ</td><td>2004</td><td>13:30</td><td>12 Oct 2025 13:37:49</td><td>13:37:57</td><td>13:38:20</td><td>13:30</td><td>12 Oct 2025 13:38:53</td></tr></tbody>
+        </table>
+
+        <div class="pager" id="dash-pager">
+          <button id="dash-prev" disabled="">« Prev</button>
+          <span class="page-info" id="dash-info">Trang 1 / 1 — 1 dòng</span>
+          <button id="dash-next" disabled="">Next »</button>
+          <span>Đến trang:</span>
+          <input type="number" min="1" value="1" class="jump" id="dash-jump">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <audio id="snd-ok" preload="auto"></audio>
+  <audio id="snd-err" preload="auto"></audio>
+<!-- ========================== APP SCRIPT (có thể tách assets/app.js) ========================== -->
+<script>
+(() => {
+  "use strict";
+
+  /* ====================== CONFIG ====================== */
+  const CONFIG = {
+    API_BASE: window.API_BASE || "",   // same-origin
+    Firebase_RTDB_URL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
+    firebase: {
+      apiKey: "AIzaSyAWB7MMNgLhmTJgDhV8WerUFqqGBdGwn0w",
+      authDomain: "data-scan-tool.firebaseapp.com",
+      databaseURL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "data-scan-tool",
+      storageBucket: "data-scan-tool.appspot.com",
+      messagingSenderId: "604963527207",
+      appId: "1:604963527207:web:82877194174efbc7a3cc02"
+    }
+  };
+
+  /* ====================== UTILS ====================== */
+
+  // ==== Simple sound (beep) feedback ====
+  function playTone(freq=880, dur=140){
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext; if(!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      osc.start();
+      const endAt = ctx.currentTime + dur/1000;
+      gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+      osc.stop(endAt + 0.02);
+    }catch{}
+  }
+  const playOk  = ()=>playTone(900, 120);
+  const playErr = ()=>playTone(220, 180);
+
+  // ==== Vendor code helpers ====
+  // 10 ký tự, bắt đầu bằng "SP", phần còn lại chữ/số
+  const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
+
+  /** Cập nhật các counter tổng từ raw RTDB */
+  function renderBreakCounters(raw){
+    const s = computeTaskStats(raw);
+
+    // Nghỉ Trưa – 60'
+    const b60   = document.getElementById("nt-b60");
+    const b60in = document.getElementById("nt-b60in");
+    if (b60)   b60.textContent   = s.total_b60;
+    if (b60in) b60in.textContent = s.total_b60_in;
+    document.querySelectorAll(".nt-totalin").forEach(el => el.textContent = s.total_in);
+
+    // Nghỉ OT – 30'
+    const b30   = document.getElementById("no-b30");
+    const b30in = document.getElementById("no-b30in");
+    if (b30)   b30.textContent   = s.total_b30;
+    if (b30in) b30in.textContent = s.total_b30_in;
+    document.querySelectorAll(".no-totalin").forEach(el => el.textContent = s.total_in);
+  }
+
+  /** Tính tổng và theo ca từ raw RTDB của ngày hiện tại */
+  function computeTaskStats(raw){
+    const byShift = {}; // {shift: { total_in, b60, b60_in, b30, b30_in }}
+
+    for (const [shift, vendors] of Object.entries(raw || {})){
+      const S = (byShift[shift] ||= { total_in:0, b60:0, b60_in:0, b30:0, b30_in:0 });
+      for (const staffGroup of Object.values(vendors || {})){
+        for (const s of Object.values(staffGroup || {})){
+          if (!s) continue;
+
+          if (hasVal(s.shift_in))      S.total_in++;
+          if (hasVal(s.break_60))      S.b60++;
+          if (hasVal(s.break_60_in))   S.b60_in++;
+          if (hasVal(s.break_30))      S.b30++;
+          if (hasVal(s.break_30_in))   S.b30_in++;
+        }
+      }
+    }
+
+    // Tổng toàn ngày
+    let total_in=0, total_b60=0, total_b60_in=0, total_b30=0, total_b30_in=0;
+    for (const sh of Object.keys(byShift)){
+      const S = byShift[sh];
+      total_in     += S.total_in;
+      total_b60    += S.b60;
+      total_b60_in += S.b60_in;
+      total_b30    += S.b30;
+      total_b30_in += S.b30_in;
+    }
+
+    return { byShift, total_in, total_b60, total_b60_in, total_b30, total_b30_in };
+  }
+
+  function findTodayRec(flat, staff_no){
+    return flat.find(r => r.wfm_code?.toUpperCase() === staff_no.toUpperCase());
+  }
+
+  function safeFocus(id){
+  // đợi DOM re-enable xong rồi mới focus
+  setTimeout(()=>{
+    const elv = document.getElementById(id);
+    if(!elv) return;
+    // đảm bảo không còn disabled/hidden
+    elv.disabled = false;
+    try{ elv.focus(); elv.select?.(); }catch(_){}
+  }, 0); // có thể đổi 0 → 30–50ms nếu vẫn bị toast/transition cướp focus
+}
+
+  // Trả về lý do chặn (string) hoặc "" nếu hợp lệ
+  function checkDuplicateByKeys(rec, action){
+  const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
+  if(!rec) return "";
+
+  if(action === "in"){
+    if(hasVal(rec.shift_in)) return "Nhân viên này đã Scan In trong ngày rồi!";
+  } else if(action === "out"){
+    if(!hasVal(rec.shift_in)) return "Nhân viên này chưa Scan In, không thể Out.";
+    if(hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out)) return "Nhân viên này đã Scan Out trong ngày rồi!";
+  } else if(action === "A0027"){           // mở 60'
+    if(hasVal(rec.break_60)) return "Nhân viên đã vào ca sau giờ nghỉ trưa rồi.";
+  } else if(action === "A0026"){           // mở 30'
+    if(hasVal(rec.break_30)) return "Nhân viên đã vào ca sau giờ nghỉ OT rồi.";
+  } else if(action === "A0020"){           // kết thúc break (vào ca)
+    const open60 = hasVal(rec.break_60) && !hasVal(rec.break_60_in);
+    const open30 = hasVal(rec.break_30) && !hasVal(rec.break_30_in);
+    if (!open60 && !open30) return "Nhân viên này đã vào ca rồi.";
+    if (open60 && open30)   return "Nhân viên này đã nghỉ giải lao rồi.";
+    // ✅ Hợp lệ: đúng 1 loại đang mở → KHÔNG trả thông báo block
+  }
+
+  return "";
+}
+
+  const VENDOR_RE = /^SP[A-Z0-9]{8}$/i;
+  const VANHANH_BASE = "https://vanhanh.shopee.vn";
+
+  /** Nếu nhập mã vendor, tự ghép sang URL /spx-ops/wh/<code>; nếu là URL/QR thì giữ nguyên */
+  function normalizeVendorOrQR(input) {
+    const s = (input || "").trim();
+    if (!s) return "";
+    if (VENDOR_RE.test(s)) return `${VANHANH_BASE}/spx-ops/wh/${s.toUpperCase()}`;
+    return s;
+  }
+
+  /** (tuỳ chọn) báo sớm nếu nhập sai định dạng vendor */
+  function assertValidVendorOrQR(s){
+    const v = (s||"").trim();
+    if (!v) throw new Error("Vui lòng nhập/scan mã.");
+    const looksUrl = /^https?:\/\//i.test(v) || v.includes("/");
+    if (!looksUrl && !VENDOR_RE.test(v)) {
+      // Không bắt buộc phải throw. Nếu muốn chặt chẽ thì mở comment dưới:
+      // throw new Error("Mã Vendor phải 10 ký tự và bắt đầu bằng SP (vd: SP12345678).");
+    }
+    return v;
+  }
+
+  // ==== DOM helpers ====
+  const $  = (s,r=document)=>r.querySelector(s);
+  const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+  const el = (id)=>document.getElementById(id);
+
+  const notice = (msg, kind="info", timeout=3000) => {
+    const n = el("notice");
+    if (!n) return;
+    n.dataset.kind = kind;
+    n.textContent = msg || "";
+    if (notice._t) clearTimeout(notice._t);
+    if (timeout>0) notice._t = setTimeout(()=>n.textContent="", timeout);
+  };
+
+  const todayKey = (d=new Date())=>{
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${dd}`;
+  };
+
+  const ceilToNext15 = ()=>{
+    const d=new Date();
+    let h=d.getHours(), m=d.getMinutes();
+    let next=Math.floor(m/15)*15+15; if(next>=60){ next=0; h=(h+1)%24; }
+    const use30=(next===0||next===15)?"00":"30";
+    return {h, use30};
+  };
+
+  const toVendorCode = (input)=>{
+    const s=(input||"").trim();
+    if(!s) return "";
+    if(/^https?:\/\//i.test(s)){
+      try{ const u=new URL(s); const parts=u.pathname.split('/').filter(Boolean); return parts.pop(); }catch{ return s; }
+    }
+    if(s.includes("/")){ const parts=s.split('/').filter(Boolean); return parts.pop(); }
+    return s;
+  };
+
+  const imgFromUrl = async (url)=>{
+    try{ const r=await fetch(url); if(!r.ok) return ""; return URL.createObjectURL(await r.blob()); }catch{ return ""; }
+  };
+
+  function setBusy(on){ document.documentElement.classList.toggle('busy', !!on); }
+  function setAllDisabled(disabled=true){
+  const dayLocked = document.body.dataset.dayLock === "1";
+  const finalDisabled = disabled || dayLocked; // nếu dayLocked thì luôn giữ disable
+
+  ["in-wfm","btnScanIn","task-wfm","btnScanTask","out-wfm","btnScanOut"].forEach(id=>{
+    const n = document.getElementById(id);
+    if (!n) return;
+    n.disabled = finalDisabled;
+    n.style.opacity = finalDisabled ? "0.6" : "1";
+    n.style.cursor  = finalDisabled ? "not-allowed" : "pointer";
+  });
+}
+
+  function scheduleShiftAutoAdvance(){
+    const apply=()=>{
+      const {h,use30}=ceilToNext15();
+      const hourEl=el('hour'), minuteEl=el('minute');
+      if(hourEl && minuteEl){
+        const hh=String(+h).padStart(2,'0');
+        if(hourEl.value!==hh) hourEl.value=hh;
+        if(minuteEl.value!==use30) minuteEl.value=use30;
+      }
+      const now=new Date();
+      const msToNextMinute=60000-(now.getSeconds()*1000+now.getMilliseconds());
+      setTimeout(apply, msToNextMinute);
+    };
+    apply();
+  }
+
+  // ==== Day lock helpers ====
+  function isTodayStr(yyyy_mm_dd){
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyy_mm_dd||"")) return false;
+    return yyyy_mm_dd === todayKey();
+  }
+
+  // Khóa quét nếu chọn khác hôm nay (past/future)
+  function applyDayLock(){
+    const dp = document.getElementById('dayPicker');
+    const locked = dp && !isTodayStr(dp.value);
+    document.body.dataset.dayLock = locked ? "1" : "0";
+
+    // Chỉ tác động tới các control quét
+    const ids = ["in-wfm","btnScanIn","task-wfm","btnScanTask","out-wfm","btnScanOut"];
+    ids.forEach(id=>{
+      const n = document.getElementById(id);
+      if (!n) return;
+      n.disabled = !!locked;
+      n.style.opacity = locked ? "0.6" : "1";
+      n.style.cursor  = locked ? "not-allowed" : "pointer";
+    });
+
+    if (locked) notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 4000);
+  }
+
+
+  /* ====================== SERVICES (API/BE) ====================== */
+  async function callWms(path, payload){
+    const url = `${CONFIG.API_BASE}${path}`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    const text = await r.text();
+    let data={}; try{ data=JSON.parse(text);}catch{}
+    if(!r.ok){
+      console.error("[callWms]", url, {payload, status:r.status, text});
+      const serverMsg=(data&&(data.message||data.error))||text.slice(0,300);
+      throw new Error(`HTTP ${r.status} – ${serverMsg}`);
+    }
+    if(typeof data.retcode!=="undefined" && data.retcode!==0){
+      console.error("[callWms-retcode]", data);
+      throw new Error(`retcode=${data.retcode} – ${(data.message||"")}`);
+    }
+    return data;
+  }
+
+  async function fetchStaffByVendor(vendorCodeInput) {
+    // Cho phép nhập SP******** hoặc URL
+    const normalized = normalizeVendorOrQR(vendorCodeInput);
+    const vendorCode = toVendorCode(normalized);
+    if (!vendorCode) throw new Error("Vendor code trống");
+
+    const url = `${window.API_BASE || ""}/wms/info/${encodeURIComponent(vendorCode)}`;
+    const r = await fetch(url, { method: "GET" });
+    let j = {};
+    try { j = await r.json(); } catch { j = {}; }
+
+    // ❗ Chỉ throw khi HTTP lỗi. KHÔNG throw khi j.ok === false
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+    // Lấy info dù j.ok false (để hiển thị sớm)
+    const base = j.all_info || {};
+    const info = {
+      full_name:  j.full_name  ?? base.full_name  ?? "",
+      contractor: j.contractor ?? base.contractor ?? "",
+      gender:     j.gender     ?? base.gender     ?? "",
+      birth_year: j.birth_year ?? base.birth_year ?? "",
+      staff_id:   j.staff_id   ?? base.staff_id   ?? "",
+    };
+
+    // wfm có thể nằm ở nhiều key khác nhau (tùy trang/parser)
+    const staff_no =
+      j.wfm || j.vac_number || j.vacc_number || base.wfm || base.vac_number || base.vacc_number || "";
+
+    const img_url = j.profile_image_url || base.profile_image_url || "";
+
+    return { staff_no, info, img_url };
+  }
+
+
+  async function parseQR(inputCode){
+    const code=(inputCode||"").trim();
+    if(!code) throw new Error("Mã trống");
+    try{
+      const data=await fetchStaffByVendor(code);
+      window.currentStaff = data;
+      return data;
+    }catch(e){
+      return { staff_no: code, info:{}, img_url:"" };
+    }
+  }
+
+  /* ====================== DATA (RTDB helpers) ====================== */
+  const rtdbDayPath = (wh, day=todayKey()) => `${CONFIG.Firebase_RTDB_URL}/${wh}/${day}.json`;
+  const rtdbRecPath = (wh, day, shift, vendor, wfm) =>
+    `${CONFIG.Firebase_RTDB_URL}/${wh}/${day}/${encodeURIComponent(shift)}/${encodeURIComponent(vendor)}/${encodeURIComponent(wfm)}.json`;
+
+  async function fetchRTDBAll(wh, day=todayKey()){
+    const r = await fetch(rtdbDayPath(wh, day));
+    return (await r.json()) || {};
+  }
+
+  function flattenRecords(records){
+    const flat=[];
+    for(const [shift, group] of Object.entries(records||{})){
+      for(const [vendor_name, staff_group] of Object.entries(group||{})){
+        for(const [wfm, info] of Object.entries(staff_group||{})){
+          flat.push({...info, shift, vendor_name, wfm_code:wfm});
+        }
+      }
+    }
+    return flat;
+  }
+
+  function computeCounts(raw){
+    let total_in=0, total_out=0;
+    for(const group of Object.values(raw||{})){
+      for(const staff_group of Object.values(group||{})){
+        const arr=Object.values(staff_group||{});
+        total_in += arr.length;
+        for(const s of arr){ if(s.gsheet_time_out || s.type==="done") total_out++; }
+      }
+    }
+    return {total_in, total_out, raw};
+  }
+
+  function computeTaskFromRaw(raw){
+    const byShift={}; let break60=0, break30=0;
+    for (const [shift, vendors] of Object.entries(raw||{})){
+      const S=(byShift[shift] ||= { totalIn:0, b60:0, b30:0 });
+      for (const staffGroup of Object.values(vendors||{})){
+        for (const s of Object.values(staffGroup||{})){
+          if(!s) continue;
+          const is60=!!s.break_60 && !s.break_60_in;
+          const is30=!!s.break_30 && !s.break_30_in;
+          S.totalIn++;
+          if(is60){ S.b60++; break60++; }
+          if(is30){ S.b30++; break30++; }
+        }
+      }
+    }
+    return { byShift, break60, break30 };
+  }
+
+  /* ====================== UI ====================== */
+  function setActiveTab(name){
+    $$('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    const want='tab-'+name;
+    $$('.tab-panel').forEach(p=>p.classList.toggle('is-hidden', p.id!==want));
+  }
+
+  function setPersonUI(prefix, info, img){
+    el(`${prefix}-fullname`).textContent    =(info.full_name||"").toUpperCase();
+    el(`${prefix}-vendor`).textContent      =(info.contractor||"").toUpperCase();
+    el(`${prefix}-vendor-code`).textContent =(info.staff_id||"").toUpperCase();
+    el(`${prefix}-gender`).textContent      =(info.gender||"").toUpperCase();
+    el(`${prefix}-birth`).textContent       =(info.birth_year||"");
+    const imgEl = el(`${prefix}-avatar`);
+    if (imgEl) imgEl.src = img || "";
+  }
+
+  function renderInCounters(stats){
+    const raw=stats.raw||{};
+    el("in-total").textContent=`Total In: ${stats.total_in}`;
+
+    const shiftBlocks=[];
+    for(const sh of Object.keys(raw).sort()){
+      const group=raw[sh]||{};
+      const total=Object.values(group).reduce((a,sg)=>a+Object.keys(sg).length,0);
+      const vendorSpans=Object.entries(group).map(([vn,sg])=>`<span>${vn}: ${Object.keys(sg).length}</span>`).join("");
+      shiftBlocks.push(
+        `<div class="block">
+          <div class="stats-line"><strong>Ca ${sh} - ${total}</strong></div>
+          <div class="stats-line vendors">${vendorSpans}</div>
+        </div>`
+      );
+    }
+    el("in-shifts").innerHTML = shiftBlocks.join("");
+
+    const vendorCounts={};
+    for(const group of Object.values(raw)){
+      for(const [vn, sg] of Object.entries(group||{})){
+        vendorCounts[vn]=(vendorCounts[vn]||0)+Object.keys(sg).length;
+      }
+    }
+
+    const totalSpans = Object.entries(vendorCounts)
+    .sort(([,na],[,nb]) => nb - na)
+    .map(([vn,n])=>`<span>${vn}: ${n}</span>`).join("");
+    el("in-vendor-stats").className="stats-line vendors";
+    el("in-vendor-stats").innerHTML=totalSpans;
+  }
+
+  function renderOutCounters(stats){
+    const raw=stats.raw||{};
+    let totIn=0, totOut=0, html="";
+    for(const sh of Object.keys(raw).sort()){
+      const group=raw[sh]||{};
+      const totalInShift = Object.values(group).reduce((a,sg)=>a+Object.keys(sg).length,0);
+      const totalOutShift = Object.values(group).reduce((a,sg)=>a+Object.values(sg).filter(s=>s.gsheet_time_out||s.type==="done").length,0);
+      html += `<div class="stats-line">Ca ${sh}  --  ${totalOutShift} / ${totalInShift}</div>`;
+      totIn += totalInShift; totOut += totalOutShift;
+    }
+    el("out-shifts").innerHTML=html;
+    el("out-total").textContent=`Total Out: ${totOut} / ${totIn}`;
+  }
+
+  // Dashboard
+  const DASH = { rows:[], filtered:[], page:1, pageSize:10, filters:{} };
+
+  function normalizeDashRow(r){
+    return {
+      vendor_name:     r.vendor_name || "",
+      vendor_code:     r.vendor_code || r.vendorCode || r.vendor_id || "",
+      wfm_code:        r.wfm_code || "",
+      wms_user_id:     r.wms_user_id || "",
+      operator:        r.operator || "",
+      fullname:        r.fullname || r.full_name || "",
+      gender:          r.gender || "",
+      birth_year:      r.birth_year || "",
+      // shift:           r.shift || r.shift_in || "",
+      gsheet_time_in:  r.gsheet_time_in || "",
+      break_60:        r.break_60 || "",
+      break_60_in:     r.break_60_in || "",
+      break_30:        r.break_30 || "",
+      break_30_in:     r.break_30_in || "",
+      // shift_out:       r.shift_out || "",
+      gsheet_time_out: r.gsheet_time_out || ""
+    };
+  }
+
+  function renderDashboardList(raw){
+    const flat=flattenRecords(raw);
+    flat.sort((b,a)=>{
+      const ao=a.gsheet_time_out||"", bo=b.gsheet_time_out||"";
+      if(ao && bo) return bo.localeCompare(ao);
+      if(ao && !bo) return -1;
+      if(!ao && bo) return 1;
+      const ai=a.gsheet_time_in||"", bi=b.gsheet_time_in||"";
+      return bi.localeCompare(ai);
+    });
+    DASH.rows = flat.map(normalizeDashRow);
+    DASH.page = 1;
+    applyDashFiltersAndRender();
+  }
+
+  function applyDashFiltersAndRender(){
+    const fs=DASH.filters||{};
+    const q=v=>String(v||"").toLowerCase();
+    DASH.filtered = DASH.rows.filter(row=>{
+      for(const [k,val] of Object.entries(fs)){
+        if(!val) continue;
+        if(!q(row[k]).includes(q(val))) return false;
+      }
+      return true;
+    });
+    renderDashTable();
+  }
+
+  function renderDashTable(){
+    const body=el("tbody-dash"); if(!body) return;
+    body.innerHTML="";
+    const total=DASH.filtered.length, ps=DASH.pageSize||10;
+    const maxPage=Math.max(1, Math.ceil(total/ps));
+    if(DASH.page>maxPage) DASH.page=maxPage;
+    const start=(DASH.page-1)*ps, end=Math.min(start+ps,total);
+    const slice=DASH.filtered.slice(start,end);
+
+    for(let i=0;i<slice.length;i++){
+      const r=slice[i];
+      const stt=start+i+1;
+      const tr=document.createElement("tr");
+      tr.innerHTML = [
+        stt,
+        r.vendor_name,
+        r.vendor_code,
+        r.wfm_code,
+        r.wms_user_id,
+        r.operator,
+        r.fullname,
+        r.gender,
+        r.birth_year,
+        r.gsheet_time_in,  // Time in
+        r.break_60,        // Nghỉ Trưa
+        r.break_60_in,     // Vào Ca Trưa
+        r.break_30,        // Nghỉ OT
+        r.break_30_in,     // Vào Ca OT
+        r.gsheet_time_out  // Time Out
+      ].map(v => `<td>${v ?? ""}</td>`).join("");
+      body.appendChild(tr);
+    }
+
+    const info=el("dash-info"); if(info) info.textContent=`Trang ${DASH.page} / ${maxPage} — ${total} dòng`;
+    const jump=el("dash-jump"); if(jump) jump.value=DASH.page;
+    const prev=el("dash-prev"), next=el("dash-next");
+    if(total<=ps){
+      prev && (prev.disabled=true);
+      next && (next.disabled=true);
+      DASH.page=1;
+      if(jump) jump.value=1;
+    }else{
+      prev && (prev.disabled = (DASH.page<=1));
+      next && (next.disabled = (DASH.page>=maxPage));
+    }
+  }
+
+  function renderTaskRightCards(raw){
+    const s = computeTaskStats(raw);
+
+    // Đổ 1 dòng vào chính <h3> để giữ CSS title
+    const h60 = el('task60-card')?.querySelector('h3');
+    const h30 = el('task30-card')?.querySelector('h3');
+    if (h60) h60.textContent = `Nghỉ Trưa: ${s.total_b60} / Vào Ca: ${s.total_b60_in} / Total: ${s.total_in}`;
+    if (h30) h30.textContent = `Nghỉ OT: ${s.total_b30} / Vào Ca: ${s.total_b30_in} / Total: ${s.total_in}`;
+
+    // Ẩn các div tổng cũ (nếu không cần nữa)
+    el('task60-total')?.classList.add('is-hidden');
+    el('task30-total')?.classList.add('is-hidden');
+
+    // Phần theo ca (nếu muốn giữ)
+    const s60 = el('task60-shifts'), s30 = el('task30-shifts');
+    const shifts = Object.keys(s.byShift).sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true}));
+    const mk = (rowFn) => shifts.map(sh=>{
+      const S = s.byShift[sh];
+      return `<div class="stats-line">Ca ${sh} — ${rowFn(S)} / ${S.total_in}</div>`;
+    }).join("");
+    if (s60) s60.innerHTML = mk((S)=>`${S.b60} / ${S.b60_in}`);
+    if (s30) s30.innerHTML = mk((S)=>`${S.b30} / ${S.b30_in}`);
+  }
+
+  /* ====================== CONTROLLERS ====================== */
+  async function doScan(direction){
+  const wh = el("warehouse").value;
+  const hh = String(+el("hour").value).padStart(2,"0");
+  const mm = el("minute").value === "30" ? "30" : "00";
+  const shiftTime = `${hh}:${mm}`;
+
+  if (direction === "in") {
+    el("in-operator").textContent = "?";
+    el("in-wmsid").textContent = "?";
+    const wfmText = el("in-wfm").value.trim();
+
+    if (!wfmText){
+      notice("Vui lòng scan QR, hoặc nhập mã Vendor (SP********) / WFM.", "error");
+      return;
+    }
+    setBusy(true);
+
+    try{
+      setAllDisabled(true);
+
+      const { staff_no, info, img_url } = await parseQR(wfmText);
+
+      // Hiển thị ngay sau parse
+      setPersonUI("in", info, img_url ? await imgFromUrl(img_url) : "");
+
+      // Không có staff_no thì dừng (không ném lỗi để UI giữ thông tin)
+      if (!staff_no){
+        notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        return;
+      }
+
+      // ⛔ Chặn Scan In trùng theo key (shift_in đã có giá trị)
+      {
+        const raw  = await fetchRTDBAll(wh, todayKey());
+        const flat = flattenRecords(raw);
+        const rec  = findTodayRec(flat, staff_no);
+        const msg  = checkDuplicateByKeys(rec, "in");
+        if (msg){ notice(msg, "error", 5000); return; }
+      }
+
+      // Gọi attendance & activity khi đã có staff_no
+      await callWms("/wms/attendance", { warehouse: wh, type: 1, staff_no });
+      const act = await callWms("/wms/activity", { warehouse: wh, staff_no, act_no: "A0020" });
+      const operator    = act?.data?.staff_name || "";
+      const wms_user_id = act?.data?.wms_user_id || "";
+
+      el("in-operator").textContent = operator || "?";
+      el("in-wmsid").textContent    = wms_user_id || "?";
+
+      const now = new Date();
+      const gsheet_time_in = now.toLocaleString("en-GB", {
+        hour12:false, day:"2-digit", month:"short", year:"numeric",
+        hour:"2-digit", minute:"2-digit", second:"2-digit"
+      }).replace(",", "");
+
+      const rec = {
+        type:"in",
+        wfm_code: staff_no,
+        fullname: info.full_name || "",
+        vendor_name: info.contractor || "",
+        shift_in: shiftTime,
+        date: todayKey(),
+        gender: info.gender || "",
+        vendor_code: info.staff_id || "",
+        birth_year: info.birth_year || "",
+        operator, wms_user_id, gsheet_time_in
+      };
+
+      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, rec.vendor_name || "", rec.wfm_code || "");
+      await fetch(path, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(rec) });
+
+      setPersonUI("in", info, img_url ? await imgFromUrl(img_url) : "");
+      notice(`✅ ${rec.fullname || ""} scan in ${now.toTimeString().slice(0,8)}`, "success", 6000);
+      playOk();
+      el("in-wfm").value = "";
+      el("in-wfm").focus();
+    }catch(e){
+      notice(`Scan in lỗi: ${e.message || e}`, "error", 5000);
+      playErr();
+    }finally{
+      setAllDisabled(false);
+      setBusy(false);
+      safeFocus("in-wfm");
+    }
+    return;
+  }
+
+  if (direction === "task") {
+    el("task-operator").textContent = "?";
+    el("task-wmsid").textContent = "?";
+
+    try {
+      setAllDisabled(true);
+
+      const qr = el("task-wfm").value.trim();
+      const rawTask = assertValidVendorOrQR(qr);          // để trong try
+      const act_no  = el("task-type").value;
+
+      const { staff_no, info, img_url } = await parseQR(rawTask);
+
+      // Hiển thị NGAY sau parse
+      setPersonUI("task", info, img_url ? await imgFromUrl(img_url) : "");
+
+      if (!staff_no) {
+        notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        return;
+      }
+
+      // ---- Fetch RTDB 1 lần, tìm record trong ngày
+      const raw  = await fetchRTDBAll(wh, todayKey());
+      const flat = flattenRecords(raw);
+      const rec  = findTodayRec(flat, staff_no);
+
+      // Helper cục bộ
+      const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
+
+      // 1) Bắt buộc: đã In và CHƯA Out
+      const isIn  = rec && hasVal(rec.shift_in);
+      const isOut = rec && (hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out));
+      if (!isIn || isOut) {
+        notice("Staff chưa scan in hoặc đã scan out!", "error", 5000);
+        return;
+      }
+
+      // 2) Chặn trùng theo key (key nào đã có giá trị thì block)
+      {
+        const msg = checkDuplicateByKeys(rec, act_no);
+        if (msg) { notice(msg, "error", 5000); return; }
+      }
+
+      // 3) Xử lý theo loại task
+      const now = new Date();
+      const task_time = now.toTimeString().slice(0,8);   // HH:MM:SS
+      let field_name = null;
+      let resp = null;
+
+      if (act_no === "A0020") {
+        const open60 = hasVal(rec.break_60) && !hasVal(rec.break_60_in);
+        const open30 = hasVal(rec.break_30) && !hasVal(rec.break_30_in);
+
+        if (!open60 && !open30) {
+          throw new Error("Không có break nào đang mở để kết thúc.");
+        }
+        if (open60 && open30) {
+          throw new Error("Đang mở đồng thời break 60' và 30'. Vui lòng xử lý thủ công.");
+        }
+
+        field_name = open60 ? "break_60_in" : "break_30_in";
+
+        // Gọi API kết thúc break
+        resp = await callWms("/wms/activity", { warehouse: wh, act_no: "A0020", staff_no });
+        } else {
+        // Mở break: A0027 (60) / A0026 (30)
+        field_name = ({ "A0027":"break_60", "A0026":"break_30" })[act_no];
+
+        resp = await callWms("/wms/activity", { warehouse: wh, act_no, staff_no });
+      }
+
+      // 4) Ghi PATCH lên RTDB (ghi theo cấu trúc shift → vendor → wfm)
+      const patch = {}; patch[field_name] = task_time;
+      const url = rtdbRecPath(
+        wh,
+        todayKey(),
+        rec.shift_in || rec.shift || "",      // node ca
+        rec.vendor_name || "",                // node vendor
+        rec.wfm_code || ""                    // node mã WFM
+      );
+      await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(patch)
+      });
+
+      // 5) UI done
+  notice(`✅ ${(resp?.data?.staff_name || info?.full_name || "")} ${task_time}`, "success", 5000);
+  playOk();
+      el("task-operator").textContent = resp?.data?.staff_name || "";
+      el("task-wmsid").textContent    = resp?.data?.wms_user_id || "";
+
+      // (tuỳ chọn) refresh KPI & bảng break_60/break_30 tại đây
+      // renderBreakTables(...);
+    } catch (e) {
+      console.error(e);
+      notice(`Task lỗi: ${e.message || e}`, "error", 5000);
+      playErr();
+    } finally {
+      setAllDisabled(false);
+      safeFocus("task-wfm");
+    }
+    return;
+  }
+
+  if (direction === "out") {
+    el("out-operator").textContent = "?";
+    el("out-wmsid").textContent = "?";
+    const wfmText = el("out-wfm").value.trim();
+    const rawOut  = assertValidVendorOrQR(wfmText);
+
+    if (!rawOut) {notice("Vui lòng nhập/scan mã WFM.", "error"); return;}
+
+    try {
+      setAllDisabled(true);
+      const { staff_no, info, img_url } = await parseQR(rawOut);
+      setPersonUI("out", info, img_url ? await imgFromUrl(img_url) : "");
+
+      if (!staff_no){
+        notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
+        el("out-wfm").value = ""; safeFocus("out-wfm");
+        return;}
+
+      const raw  = await fetchRTDBAll(wh, todayKey());
+      const flat = flattenRecords(raw);
+      const rec  = findTodayRec(flat, staff_no);
+
+      // helper
+      const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
+
+      // Bắt buộc đã In và chưa Out
+      const isIn  = rec && hasVal(rec.shift_in);
+      const isOut = rec && (hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out));
+      if (!isIn || isOut) {notice("Nhân viên này chưa Scan In trước đó hoặc đã Scan Out.", "error", 5000);return;
+      }
+
+      // Chặn trùng theo key cho Out (shift_out đã có)
+      {
+        const msg = checkDuplicateByKeys(rec, "out");
+        if (msg){ notice(msg, "error", 5000); return; }
+        el("out-wfm").value = ""; safeFocus("out-wfm");
+      }
+
+      // Set UI từ record
+      setPersonUI("out", info || rec, img_url ? await imgFromUrl(img_url) : "");
+      el("out-operator").textContent = rec.operator    || "";
+      el("out-wmsid").textContent    = rec.wms_user_id || "";
+
+      // Attendance Out
+      await callWms("/wms/attendance", { warehouse: wh, type: 2, staff_no });
+
+      const now = new Date();
+      const shift_out = `${String(+el("hour").value).padStart(2,"0")}:${el("minute").value==="30" ? "30" : "00"}`;
+      const gsheet_time_out = now.toLocaleString("en-GB", {
+        hour12:false, day:"2-digit", month:"short", year:"numeric",
+        hour:"2-digit", minute:"2-digit", second:"2-digit"
+      }).replace(",", "");
+
+      const patch = { shift_out, gsheet_time_out, type:"done" };
+      const url = rtdbRecPath(
+        wh,
+        todayKey(),
+        rec.shift_in || rec.shift,
+        rec.vendor_name || "",
+        rec.wfm_code || ""
+      );
+      await fetch(url, { method:"PATCH", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(patch) });
+
+      notice(`✅ ${(info?.full_name || rec.fullname || "")} scan out ${now.toTimeString().slice(0,8)}`, "success", 5000);
+      playOk();
+      el("out-wfm").value = "";
+
+    }catch(e){
+      notice(`Scan out lỗi: ${e.message || e}`, "error", 5000);
+      playErr();
+    }finally{
+      setAllDisabled(false);
+      setBusy(false);
+      safeFocus("out-wfm");
+    }
+    return;
+  }
+}
+
+
+  /* ====================== REALTIME (Firebase) ====================== */
+  // module type="module" để import SDK sẽ tiện hơn; ở đây mình tối giản: SDK import ở cuối bằng type=module
+  window.__startRealtimeAll = function(db){
+    let detach=null;
+    function start(){
+      const wh = el('warehouse')?.value || 'VNDB';
+      const dp = el('dayPicker');
+      const day = (dp?.value && /^\d{4}-\d{2}-\d{2}$/.test(dp.value)) ? dp.value : todayKey();
+      applyDayLock();   // <<< gọi ngay khi đổi ngày/kho
+
+      if(detach){ try{ detach(); }catch{} detach=null; }
+      setBusy(true);
+
+      const { ref, onValue } = window.__firebaseDB;
+      const r = ref(db, `${wh}/${day}`);
+      console.debug("[Realtime] Listen:", `${wh}/${day}`);
+
+      detach = onValue(
+        r,
+        (snap)=>{
+          const val=snap.val()||{};
+          const stats=computeCounts(val);
+          renderInCounters(stats);
+          renderOutCounters(stats);
+          renderTaskRightCards(val);
+          renderDashboardList(val);
+          setBusy(false);
+        },
+        (err)=>{
+          console.error("[Realtime] error:", err);
+          setBusy(false);
+        }
+      );
+    }
+    el('dayPicker')?.addEventListener('change', start);
+    el('warehouse')?.addEventListener('change', start);
+    window.addEventListener('load', start);
+  };
+
+  /* ====================== INIT ====================== */
+  function bindEvents(){
+    // Tabs
+    const tabs = el('tabs');
+    tabs?.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.tab-btn'); if(!btn) return;
+      setActiveTab(btn.dataset.tab);
+    });
+
+    // Scan buttons
+    el("btnScanIn").onclick  = ()=>doScan("in");
+    el("in-wfm").addEventListener("keydown", e=>{ if(e.key==="Enter") doScan("in"); });
+    el("btnScanOut").onclick = ()=>doScan("out");
+    el("out-wfm").addEventListener("keydown", e=>{ if(e.key==="Enter") doScan("out"); });
+    el("btnScanTask").onclick = ()=>doScan("task");
+    el("task-wfm").addEventListener("keydown", e=>{ if(e.key==="Enter") doScan("task"); });
+
+    // Dashboard filters + pager
+    $$('#tbl-dashboard thead input.col-filter').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        DASH.filters[inp.dataset.col]=inp.value;
+        DASH.page=1;
+        applyDashFiltersAndRender();
+      });
+    });
+    el("dash-prev")?.addEventListener('click', ()=>{ if(DASH.page>1){ DASH.page--; renderDashTable(); }});
+    el("dash-next")?.addEventListener('click', ()=>{ DASH.page++; renderDashTable(); });
+    el("dash-jump")?.addEventListener('change', ()=>{
+      const jump=el("dash-jump"); const v=Math.max(1, parseInt(jump.value||"1",10));
+      DASH.page=v; renderDashTable();
+    });
+  }
+
+  function initDayPicker(){
+    const dp=el('dayPicker');
+    if(!dp) return;
+    if(!dp.value){
+      const d=new Date();
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+      dp.value = `${y}-${m}-${dd}`;
+    }
+  }
+
+  function init(){
+    const {h,use30}=ceilToNext15();
+    el("hour").value = h;
+    el("minute").value = use30;
+    notice("Dữ liệu đã sẵn sàng!", "success", 2000);
+    scheduleShiftAutoAdvance();
+    setActiveTab('scan');
+    initDayPicker();
+    applyDayLock();
+    bindEvents();
+  }
+
+  // Expose minimal for debugging if cần
+  window.ScanTool = { CONFIG, doScan };
+
+  // Run init
+  document.addEventListener('DOMContentLoaded', init);
+
+  // Export Excel từ dữ liệu đang hiển thị (đã lọc)
+  el("btnExportXlsx")?.addEventListener("click", () => {
+    try{
+      const headers = [
+        "Nhà Thầu","Mã Vendor","Mã WFM","Mã WMS","Operator",
+        "Họ và Tên","Giới tính","Năm sinh","Time in",
+        "Nghỉ Trưa","Vào Ca Trưa","Nghỉ OT","Vào Ca OT","Time Out"
+      ];
+      const rows = (DASH.filtered?.length ? DASH.filtered : DASH.rows).map(r => ([
+        r.vendor_name, r.vendor_code, r.wfm_code, r.wms_user_id, r.operator,
+        r.fullname, r.gender, r.birth_year,
+        r.gsheet_time_in, r.break_60,  r.break_60_in, r.break_30,r.break_30_in, r.gsheet_time_out
+      ]));
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      // Fit width nhẹ
+      const colWidths = headers.map((h, i) => ({
+        wch: Math.max(
+          String(h || "").length + 2,
+          ...rows.map(r => String(r[i] || "").length + 1)
+        )
+      }));
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Dashboard");
+      const wh = el("warehouse")?.value || "WAREHOUSE";
+      const day = el("dayPicker")?.value || todayKey();
+      XLSX.writeFile(wb, `dashboard_${wh}_${day}.xlsx`);
+    }catch(e){
+      console.error(e);
+      notice("Xuất Excel thất bại.", "error", 4000);
+    }
+  });
+
+
+})();
+</script>
+
+<!-- ========================== Firebase SDK (module) ========================== -->
+<script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const cfg = {
+    apiKey: "AIzaSyAWB7MMNgLhmTJgDhV8WerUFqqGBdGwn0w",
+    authDomain: "data-scan-tool.firebaseapp.com",
+    databaseURL: "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "data-scan-tool",
+    storageBucket: "data-scan-tool.appspot.com",
+    messagingSenderId: "604963527207",
+    appId: "1:604963527207:web:82877194174efbc7a3cc02"
+  };
+  const app = getApps().length ? getApps()[0] : initializeApp(cfg);
+  const db  = getDatabase(app);
+
+  // “Cầu nối” để script chính dùng mà không cần import (giữ one-file)
+  window.__firebaseDB = { ref, onValue };
+  if (typeof window.__startRealtimeAll === 'function') {
+    window.__startRealtimeAll(db);
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{% endblock %}
+

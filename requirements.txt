@@ -1,0 +1,15 @@
+# Web Framework
+Flask==3.0.0
+waitress==2.1.2
+
+# Firebase
+firebase-admin==6.3.0
+
+# Excel handling
+openpyxl==3.1.2
+
+# HTTP requests
+requests==2.31.0
+
+# File watching (optional - for development)
+watchdog==3.0.0

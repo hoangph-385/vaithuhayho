@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>{% block title %}Vaithuhayho{% endblock %}</title>
+
+  <!-- Main CSS - All styles in one file -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+  <header>
+    <a href="/" class="{% if request.path == '/' %}active{% endif %}">Trang chủ</a>
+    <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
+    <a href="/handover" class="{% if request.path.startswith('/handover') %}active{% endif %}">Handover Tool</a>
+    <a href="/about" class="{% if request.path.startswith('/about') %}active{% endif %}">About</a>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Page-specific JavaScript -->
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

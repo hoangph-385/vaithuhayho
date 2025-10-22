@@ -1,0 +1,1114 @@
+{% extends "home.html" %}
+{% block title %}Handover Tool{% endblock %}
+{% block content %}
+<h1>Handover Tool</h1>
+
+<script>
+  window.API_BASE = window.API_BASE || "";   // mặc định cùng origin; thay bằng "http://127.0.0.1:8008" khi dev
+</script>
+
+<!-- ===== Controls (mới) ===== -->
+<div id="controls">
+  <label>Channel:</label>
+  <div id="channelGroup" class="btn-group" data-active="SPX">
+    <button type="button" data-val="SPX" class="btn-toggle active">SPX</button>
+    <button type="button" data-val="GHN" class="btn-toggle">GHN</button>
+  </div>
+
+  <div class="row">
+    <input id="userName" placeholder="Nhập tên người bàn giao">
+    <input id="orderId" placeholder="Nhập mã vận đơn (Enter để Scan)">
+    <button id="btnNextBatch" class="btn-action">Next batch</button>
+    <button id="btnReport" class="btn-report">Report</button>
+  </div>
+
+  <!-- ===== Report + Delete ===== -->
+  <div id="reporting">
+    <input id="deleteBox" placeholder="Nhập mã đơn cần xoá">
+    <button id="btnDelete" class="btn-action btn-danger">Delete</button>
+  </div>
+</div>
+
+  <!-- Date selector -->
+  <div class="row mt-2">
+    <label>Ngày:</label>
+    <input id="datePicker" type="date">
+    <input id="searchBox" placeholder="Tìm theo mã đơn/user...">
+    <button id="btnSearch" class="btn-action">Search</button>
+    <button id="btnReset" class="btn-action">Reset</button>
+  </div>
+</div>
+
+<!-- Inline style removed; using static/css/main.css -->
+
+<!-- ===== Notice ===== -->
+<div id="notice" class="notice"></div>
+
+<!-- ===== Dual Tables: Scan (left) & Cancel (right) ===== -->
+<div id="tablesWrap">
+  <!-- SCAN TABLE -->
+  <section id="scanSection">
+  <div class="row" style="margin-bottom:6px">
+  <h3>
+        <!-- SCAN -->
+        <span id="scanStats" class="scan-stats"></span>
+      </h3>
+  <div class="row ml-auto">
+        <span>Page:</span>
+        <button id="scanPrev">«</button>
+        <span id="scanPageDisplay">1/1</span>
+        <button id="scanNext">»</button>
+      </div>
+    </div>
+
+    <div class="table-scroll card" style="padding:0">
+      <table id="tblScan">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Mã Đơn</th>
+            <th>Scan Time</th>
+            <th>User</th>
+            <th>Cancel?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CANCEL TABLE -->
+  <section id="cancelSection">
+    <div class="row" style="margin-bottom:6px">
+      <h3>
+  Đơn Huỷ <span id="cancelCountsHdr"></span>
+  </h3>
+      <div class="row ml-auto">
+        <span>Page:</span>
+        <button id="cancelPrev">«</button>
+        <span id="cancelPageDisplay">1/1</span>
+        <button id="cancelNext">»</button>
+      </div>
+    </div>
+    <div class="table-scroll card" style="padding:0">
+      <table id="tblCancel">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Mã Đơn</th>
+            <th>Scan Time</th>
+            <th>User</th>
+            <th>Cancel?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- Inline responsive CSS removed; using static/css/main.css -->
+
+<!-- ===== Firebase SDKs ===== -->
+<script type="module">
+  // ✅ Chỉ dùng CDN URL (không dùng "firebase/database")
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getDatabase, ref, get, set, remove, onValue,
+    goOffline, goOnline
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCdSInR5JXWsFCZl3ygdoEeSRra6_wGrW4",
+    authDomain: "handover-4.firebaseapp.com",
+    databaseURL: "https://handover-4-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "handover-4",
+    storageBucket: "handover-4.firebasestorage.app",
+    messagingSenderId: "935608155206",
+    appId: "1:935608155206:web:4abc6a60e1736399571e47",
+    measurementId: "G-FVKZLCE7DB"
+  };
+
+  // ✅ Tránh lỗi "Firebase App '[DEFAULT]' already exists"
+  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+  // ✅ DB instance chuẩn
+  const db = getDatabase(app);
+
+  // (tuỳ chọn) Tiết kiệm connection khi tab ẩn
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) goOffline(db); else goOnline(db);
+  });
+  window.addEventListener("beforeunload", () => goOffline(db));
+
+  // === Date helpers (GMT+7) ===
+  const todayISO = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${dd}`;         // YYYY-MM-DD (cho <input type="date">)
+  };
+  const isoToKey = (iso) => {
+    // YYYY-MM-DD -> DD-MM-YYYY (đang dùng trên Firebase)
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return today(); // fallback
+    const [y,m,d] = iso.split("-");
+    return `${d}-${m}-${y}`;
+  };
+  const keyToISO = (key) => {
+    // DD-MM-YYYY -> YYYY-MM-DD
+    if (!key || !/^\d{2}-\d{2}-\d{4}$/.test(key)) return todayISO();
+    const [d,m,y] = key.split("-");
+    return `${y}-${m}-${d}`;
+  };
+  const isSameDay = (isoA, isoB) => isoA === isoB;
+
+  // === Selected day state ===
+  const $ = sel => document.querySelector(sel);
+  const today = () => {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  };
+  const formatVN = (d) => {
+    // chuẩn hoá GMT+7 bằng toLocaleString với timeZone Asia/Ho_Chi_Minh
+    return new Date(d).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }).replace(",", "");
+  };
+
+  let SELECTED_KEY = today();       // DD-MM-YYYY (đường dẫn Firebase)
+  let SELECTED_ISO = todayISO();    // YYYY-MM-DD (UI date input)
+
+  function formatISO(ts) {
+  const d = new Date(ts);
+  // buộc timezone Asia/Ho_Chi_Minh
+  const y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${y}-${M}-${dd} ${hh}:${mm}:${ss}`;
+}
+
+  const notice = (msg, kind="info", timeout=6000) => {
+    const bar = $("#notice");
+    const styles = {
+      info: "color:#31708f;",
+      success: "color:#3c763d;font-weight:600;",
+      warning: "color:#8a6d3b;font-weight:600;",
+      error: "color:#a94442;font-weight:600;"
+    };
+    bar.style.cssText += styles[kind] || styles.info;
+    bar.textContent = msg || "";
+    if (timeout>0) setTimeout(()=>bar.textContent="", timeout);
+  };
+
+  // ===== State =====
+  let ALL_EVENTS = {};     // { DATA_SCAN, Data-cancel }
+  let CANCEL_MAP = {};     // TRACKING -> { cancel_time, channel }
+  let currentBatchByCh = { SPX:1, GHN:1, NJV:1 };
+
+  // UI refs
+  const el = {
+    chanGroup: document.getElementById("channelGroup"),
+    user: $("#userName"),
+    order: $("#orderId"),
+    btnNextBatch: $("#btnNextBatch"),
+    searchBox: $("#searchBox"),
+    btnSearch: $("#btnSearch"),
+    deleteBox: $("#deleteBox"),
+    btnDelete: $("#btnDelete"),
+  };
+
+  // Date picker
+  el.datePicker = document.getElementById("datePicker");
+  el.btnLoadDay = document.getElementById("btnLoadDay");
+
+  const selectedChannel = () => (el.chanGroup.dataset.active || "SPX");
+
+  function bindToggle(groupEl, onChange){
+    groupEl.addEventListener("click", (e)=>{
+      const btn = e.target.closest(".btn-toggle");
+      if(!btn) return;
+      groupEl.querySelectorAll(".btn-toggle").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      groupEl.dataset.active = btn.dataset.val;
+      onChange && onChange();
+    });
+  }
+
+ // ===== Sound Manager (đọc từ static/, giống v4.5.2) =====
+// URL tuyệt đối do Flask build (đúng cả khi đổi static_url_path).
+const STATIC_AUDIO_URLS = {
+  "cancel.mp3":      "{{ url_for('static', filename='cancel.mp3') }}",
+  "error.mp3":       "{{ url_for('static', filename='error.mp3') }}",
+  "ok.mp3":          "{{ url_for('static', filename='ok.mp3') }}",
+  "sys_error.mp3":   "{{ url_for('static', filename='sys_error.mp3') }}",
+  "sys_success.mp3": "{{ url_for('static', filename='sys_success.mp3') }}"
+};
+
+// Map key logic -> file (giống tool PC)
+const SND_MAP = {
+  ok:          "ok.mp3",
+  err:         "error.mp3",
+  cancel:      "cancel.mp3",
+  sys_success: "sys_success.mp3",
+  sys_error:   "sys_error.mp3"
+};
+
+// Preload
+const _audioEls = new Map();
+Object.entries(STATIC_AUDIO_URLS).forEach(([name, url]) => {
+  const a = new Audio(url);
+  a.preload = "auto";
+  _audioEls.set(name, a);
+});
+
+// Beep fallback ngắn
+const BEEP_OK  = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhYWFhYWFhYQAA";
+const BEEP_ERR = "UklGRoQAAABXQVZFZm10IBAAAAABAAEARKwAABCiAAACABYAAABhZmZhZmZhZgAA";
+function _beep(ok=true){ const a=new Audio("data:audio/wav;base64,"+(ok?BEEP_OK:BEEP_ERR)); a.play().catch(()=>{}); }
+
+// Reset về mặc định (SPX / hôm nay / page 1)
+function resetAll(){
+  // reset channel về SPX
+  const chGroup = el.chanGroup;
+  if (chGroup){
+    chGroup.dataset.active = "SPX";
+ slice.forEach(([id, ev]) => {
+      b.classList.toggle("active", b.dataset.val==="SPX");
+    });
+  }
+
+  // reset input
+  if (el.user) el.user.value = "";
+  if (el.order) el.order.value = "";
+  if (el.searchBox) el.searchBox.value = "";
+  if (el.deleteBox) el.deleteBox.value = "";
+
+  // reset date về hôm nay
+  SELECTED_ISO = todayISO();
+   const tr = document.createElement("tr");
+   const bgClass = isYes ? "bg-yes" : (isNo ? "bg-no" : "");
+   tr.innerHTML = \`
+     <td>${sttGlobal}</td>
+     <td>${id}</td>
+     <td>${scanTimeText}</td>
+     <td>${hasScan ? (ev.user || "") : ""}</td>
+     <td class="${bgClass}">${isCanceledAtScan || "-"}</td>
+   \`;
+  renderBoth();
+
+  // nhảy về trang cuối cùng của SPX
+  const totalPages = getScanTotalPages();
+  scanPageIndex = totalPages;
+  setScanPage(scanPageIndex);
+
+  const cancelTotalPages = getCancelTotalPages();
+  cancelPageIndex = cancelTotalPages;
+  setCancelPage(cancelPageIndex);
+
+  // cập nhật enable/disable theo ngày đang chọn (hôm nay) + trạng thái mạng
+  applyHistoricalMode();
+
+  notice("Đã reset: Channel SPX / Hôm nay / Trang cuối", "success", 4000);
+}
+
+const btnReset = document.getElementById("btnReset");
+if (btnReset) btnReset.addEventListener("click", resetAll);
+
+// Unlock autoplay (chỉ 1 biến)
+// Unlock autoplay theo chuẩn: ưu tiên WebAudio, fallback muted play
+let _audioUnlocked = false;
+
+async function unlockAudioOnce() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+
+  // 1) Ưu tiên WebAudio: phát 1 buffer im lặng (không đụng file mp3)
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const actx = new AudioCtx();
+      if (actx.state === "suspended" && actx.resume) {
+        // iOS Safari thường cần resume trong gesture
+        await actx.resume().catch(()=>{});
+      }
+      const buffer = actx.createBuffer(1, 1, actx.sampleRate); // 1 sample, silence
+      const src = actx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(actx.destination);
+      src.start(0);
+      return; // xong, đã “mở khóa” audio stack
+    }
+  } catch (e) {
+    // tiếp tục fallback
+  }
+
+  // 2) Fallback: play+pause tất cả audio nhưng tắt tiếng tuyệt đối
+  for (const a of _audioEls.values()) {
+    try {
+      const prevMuted  = a.muted;
+      const prevVolume = a.volume;
+      a.muted  = true;
+      a.volume = 0;
+      await a.play().then(()=>a.pause()).catch(()=>{});
+      a.currentTime = 0;     // về đầu
+      a.muted  = prevMuted;  // khôi phục trạng thái
+      a.volume = prevVolume;
+    } catch (e) {}
+  }
+}
+
+window.addEventListener("click",  unlockAudioOnce, { once: true });
+window.addEventListener("keydown", unlockAudioOnce, { once: true });
+
+
+function playByName(name) {
+  const a = _audioEls.get(name);
+  if (!a) return _beep(false);
+  a.currentTime = 0;
+  a.play().catch(()=>{});
+}
+
+// Hàm public giống v4.5.2
+let playOk     = () => playByName(SND_MAP.ok);
+let playErr    = () => playByName(SND_MAP.err);
+let playCancel = () => playByName(SND_MAP.cancel);
+let playSysOk  = () => playByName(SND_MAP.sys_success);
+let playSysErr = () => playByName(SND_MAP.sys_error);
+
+// ===== Report (text + file) =====
+async function postJSON(url, body){
+  const base = (window.API_BASE || "");                 // "" => same origin
+  const r = await fetch(base + url, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json().catch(()=> ({}));
+}
+
+// Gửi Report
+async function runReport(){
+  try{
+    // KHÔNG khóa toàn bộ input nữa; chỉ báo trạng thái
+    notice("Đang thực hiện Report (text + file)…");
+    const res = await postJSON("/api/report/run", { date: SELECTED_KEY }); // dùng ngày đang chọn
+    playSysOk();
+    const link = (res && res.seatalk && res.seatalk.file_url) ? res.seatalk.file_url : "";
+    notice(`✅ Đã gửi Report cho ngày ${SELECTED_KEY} qua Seatalk - nhóm Handover`, "success", 10000);
+  }catch(e){
+    playSysErr();
+    notice("❌ Report lỗi: " + e.message, "error", 10000);
+  }
+}
+
+document.getElementById("btnReport").addEventListener("click", runReport);
+
+function applyHistoricalMode(){
+  const isToday = isSameDay(SELECTED_ISO, todayISO());
+
+  // Cho phép Search + Report mọi lúc
+  el.searchBox.disabled = false;
+  el.btnSearch.disabled = false;
+  document.getElementById("btnReport").disabled = false;
+
+  // Nếu KHÔNG phải hôm nay -> khóa các tác vụ ghi
+  const lock = !isToday || !connected;
+  // Scan + Delete + Next batch
+  el.order.disabled = lock;
+  el.btnDelete.disabled = lock;
+  el.deleteBox.disabled = lock;
+  el.btnNextBatch.disabled = lock;
+
+  // Nhóm toggle channel/mode và paging vẫn bật để duyệt dữ liệu
+  el.chanGroup?.querySelectorAll("button").forEach(b => b.disabled = false);
+  el.modeGroup?.querySelectorAll("button").forEach(b => b.disabled = false);
+
+  if (el.btnPrev) el.btnPrev.disabled = false;
+  if (el.btnNext) el.btnNext.disabled = false;
+  if (el.page)    el.page.disabled    = false;
+
+
+  // Thông báo
+  if (!isToday) {
+    notice(`Đang xem dữ liệu ngày ${SELECTED_KEY}. Chế độ chỉ đọc (Search/Report).`, "warning", 6000);
+  }
+}
+
+// Auto-load khi đổi ngày trên datePicker
+el.datePicker.addEventListener("change", () => {
+  const pickISO = el.datePicker.value || todayISO();
+
+  // Nếu không đổi ngày thì thôi
+  if (pickISO === SELECTED_ISO) return;
+
+  // Cập nhật state ngày
+  SELECTED_ISO = pickISO;
+  SELECTED_KEY = isoToKey(pickISO);
+
+  // Reset paging về trang 1 cho cả hai bảng
+  scanPageIndex = 1;
+  cancelPageIndex = 1;
+  setScanPage(1);
+  setCancelPage(1);
+
+  // Gắn lại listeners theo ngày mới
+  bindAllListenersFor(SELECTED_KEY);
+  // Bật/tắt input theo ngày & mạng
+  applyHistoricalMode();
+  // Render lại
+  renderBoth();
+});
+
+// Khi trạng thái kết nối đổi, vẫn giữ nguyên rule theo ngày
+const _origWatchConnectivity = watchConnectivity;
+
+el.datePicker.value = SELECTED_ISO;
+let pageIndex = 1;
+let connected = false;
+
+  // chống spam & trùng trong phiên
+  let isSubmitting = false;
+  const PENDING_SET = new Set();              // id đang submit (chưa xong)
+  const LOCAL_SEEN  = new Map();              // key = `${today()}|${ch}` -> Set(ids)
+
+  function _seenKey(ch){ return `${today()}|${ch}`; }
+  function _getSeen(ch){
+    const k = _seenKey(ch);
+    if (!LOCAL_SEEN.has(k)) LOCAL_SEEN.set(k, new Set());
+    return LOCAL_SEEN.get(k);
+}
+
+  const setInputsEnabled = (on) => {
+  const disabled = !on;
+  [el.order, el.btnNextBatch,el.searchBox, el.btnSearch, el.deleteBox, el.btnDelete].forEach(x => x && (x.disabled = disabled));
+
+  // disable các nút trong nhóm toggle
+  el.chanGroup?.querySelectorAll("button").forEach(b => b.disabled = disabled);
+};
+
+// ===== BẮT LỖI TOÀN CỤC + DẤU VẾT BOOT =====
+console.log("[BOOT] handover module start");
+window.addEventListener("error", e => console.error("[GlobalError]", e.message, e.filename, e.lineno, e.error));
+window.addEventListener("unhandledrejection", e => console.error("[PromiseRejection]", e.reason));
+
+// 🔌 Theo dõi kết nối Firebase (bao gồm mất mạng)
+// ✅ dùng function declaration để được hoisted
+// ---- helpers ----
+function pick(...ids){
+  for (const id of ids){
+    const el = document.getElementById(id);
+    if (el) return el;
+  }
+  return null;
+}
+
+// ---- functions (dùng function declaration để hoisted) ----
+function watchConnectivity() {
+  const infoRef = ref(db, ".info/connected");
+  onValue(infoRef, snap => {
+    connected = !!snap.val();
+    if (!connected) notice("Mất kết nối Firebase. Vui lòng kiểm tra mạng…", "error", 0);
+    else notice("Đã kết nối Firebase.", "success", 1500);
+    applyHistoricalMode();
+  });
+}
+
+/* ==== RENDER & DATA HELPERS ==== */
+const PAGE_SIZE = 100;
+
+// hoist 1 lần ở trên
+function parseTimeString(s){
+  try{
+    const str = String(s||"").trim();
+
+    // ISO-like: YYYY-MM-DD HH:mm:ss
+    let m = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+    if (m) {
+      const [_, y, M, d, h, m1, s1] = m.map(Number);
+      return Math.floor(new Date(y, M-1, d, h, m1, s1).getTime()/1000);
+    }
+
+    // VN-like: DD-MM-YYYY HH:mm:ss
+    m = str.match(/^(\d{2})-(\d{2})-(\d{4})[ T](\d{2}):(\d{2}):(\d{2})$/);
+    if (m) {
+      const [_, d, M, y, h, m1, s1] = m.map(Number);
+      return Math.floor(new Date(y, M-1, d, h, m1, s1).getTime()/1000);
+    }
+  }catch(e){/* no-op */}
+  return 0;
+}
+
+// helper chung
+function paginate(total, pageSize, reqPage){
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, Number(reqPage || 1)), totalPages);
+  const start = (page - 1) * pageSize;          // 0-based
+  const end   = Math.min(start + pageSize, total);
+  const count = end - start;                     // số dòng thực sự hiển thị
+  const noStart = total - start;                 // STT đầu trang (giảm dần)
+  return { totalPages, page, start, end, count, noStart };
+}
+
+function getScanRows(){
+  const ch = selectedChannel();
+  const data = (ALL_EVENTS["DATA_SCAN"]?.[ch]) || {};
+  const rows = [];
+  for (const [id, v] of Object.entries(data)){
+    let ts = Number(v.ts||0);
+    if (!ts && v.time) ts = parseTimeString(v.time);
+    rows.push([id, {
+      ts,                                  // scan_ts
+      time_vn: v.time_vn || v.time || (ts ? formatISO(ts*1000) : ""),
+      user: v.user || "",
+      is_cancelled: v.is_cancelled || "No",
+      batch_id: v.batch_id || "",
+    }]);
+  }
+  return rows;
+}
+
+function getScanTotalPages(){
+  const rows = (typeof applySearch==="function") ? applySearch(getScanRows()) : getScanRows();
+  return Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+}
+
+function getCancelRows(){
+  const ch = selectedChannel();
+  const cancelSrc = (ALL_EVENTS["Data-cancel"]?.[ch]) || {};
+  const scanData  = (ALL_EVENTS["DATA_SCAN"]?.[ch]) || {};
+
+  const rows = [];
+  for (const id of Object.keys(cancelSrc)) {
+    const evScan = scanData[id] || {};   // nếu chưa scan thì object rỗng
+    let scan_ts = Number(evScan.ts||0);
+    if (!scan_ts && evScan.time) scan_ts = parseTimeString(evScan.time);
+
+    rows.push([id, {
+      cancel_time: Number(cancelSrc[id]?.cancel_time) || 0,
+      scan_ts,
+      time_vn: evScan.time_vn || evScan.time || "",
+      user: evScan.user || "",
+      // ✅ chỉ lấy is_cancelled nếu có bản ghi SCAN, nếu chưa scan => để ""
+      is_cancelled: (Object.keys(evScan).length > 0) ? (evScan.is_cancelled || "No") : "",
+      batch_id: evScan.batch_id || "",
+    }]);
+  }
+  return rows;
+}
+
+function applySearch(rows){
+  const q = (el.searchBox.value || "").trim().toUpperCase();
+  if (!q) return rows;
+  return rows.filter(([id, ev]) =>
+    id.toUpperCase().includes(q) ||
+    (ev.user||"").toUpperCase().includes(q)
+  );
+}
+
+/* =========================
+   RENDER 2 BẢNG
+========================= */
+const el2 = {
+  tblScanBody   : document.querySelector("#tblScan tbody"),
+  tblCancelBody : document.querySelector("#tblCancel tbody"),
+  scanPrev      : document.getElementById("scanPrev"),
+  scanNext      : document.getElementById("scanNext"),
+  cancelPrev    : document.getElementById("cancelPrev"),
+  cancelNext    : document.getElementById("cancelNext"),
+  scanPageDisp  : document.getElementById("scanPageDisplay"),
+  cancelPageDisp: document.getElementById("cancelPageDisplay"),
+};
+
+let scanPageIndex   = 1;
+let cancelPageIndex = 1;
+
+const currentBatch = () => Number(currentBatchByCh[selectedChannel()] || 1);
+
+// ===== Submit scan (GMT+7 + sound + prefix) =====
+  const prefixByCh = {
+  SPX: { prefix: "SPX", len: 17 },   // 3 + 14 ký tự
+  GHN: { prefix: "G",   len: 8  },   // 1 + 7 ký tự
+  NJV: { prefix: "SPE", len: null }  // chưa giới hạn
+};
+
+  const submitScan = async () => {
+    if (!connected) { playErr(); notice("Chưa kết nối Firebase!", "error", 3000); return; }
+
+    const user = (el.user.value || "").trim();
+    const id   = (el.order.value || "").trim().toUpperCase();
+    const ch   = selectedChannel();
+
+    if (!user) {
+      playErr();
+      notice("⚠️ Tên người bàn giao không được để trống!", "warning", 3000);
+      el.order.value = "";
+      el.user.focus();
+      return;
+    }
+    if (!id) return;
+
+    const rule = prefixByCh[ch] || {};
+    const prefix = rule.prefix || "";
+    const maxLen = rule.len;
+
+    // check prefix
+    if (!id.startsWith(prefix)) {
+      playErr();
+      notice(`❗ Đơn ${id} không thuộc Channel ${ch}.`, "error", 3000);
+      el.order.value = "";
+      el.order.focus();
+      return;
+    }
+
+    // check length nếu có quy định
+    if (maxLen && id.length > maxLen) {
+      playErr();
+      notice(`❗ ${ch} chỉ cho phép tối đa ${maxLen} ký tự (hiện ${id.length}).`, "error", 3000);
+      el.order.value = "";
+      el.order.focus();
+      return;
+    }
+
+    const node = `/${today()}/DATA_SCAN/${ch}/${id}`;
+    const snap = await get(ref(db, node));
+    if (snap.exists()) {
+      playErr();
+      notice(`❗ Đơn ${id} đã được quét trước đó.`, "warning", 3000);
+      el.order.value = "";
+      el.order.focus();
+      return;
+    }
+
+    // CANCEL check
+    const isCancelled = (CANCEL_MAP[id]?.channel?.toUpperCase() === ch) ? "Yes" : "No";
+    const nowTs = Math.floor(Date.now()/1000);
+    const payload = {
+      ts: nowTs,                                      // epoch seconds (để sort)
+      // time_vn: formatVN(nowTs*1000),                  // hiển thị chuẩn GMT+7
+      time_vn: formatISO(nowTs*1000),                 // hiển thị chuẩn YYYY-MM-DD HH:mm:ss
+      user,
+      is_cancelled: isCancelled,
+      source: "webapp",
+      batch_id: currentBatch()
+    };
+    await set(ref(db, node), payload);
+
+    if (isCancelled==="Yes") {
+    playCancel();                             // ⬅️ thay vì playErr()
+    notice(`${id} - ĐƠN CANCEL`, "warning", 6000);
+    } else {
+      playOk();
+      notice(`✅ ${id}`, "success", 1500);
+    }
+    el.order.focus();
+    el.order.value = "";
+  };
+
+  // ===== Next batch =====
+  const doNextBatch = async () => {
+    if (!connected) { playErr(); notice("Chưa kết nối Firebase!", "error", 3000); return; }
+    const ch = selectedChannel();
+    const node = `/${today()}/BATCH/${ch}`;
+    const cur  = (await get(ref(db, node))).val() || 1;
+    await set(ref(db, node), Number(cur)+1);
+    el.order.focus();
+  };
+
+  // ===== Delete =====
+  const doDelete = async () => {
+    if (!connected) {
+      playErr();
+      notice("Chưa kết nối Firebase!", "error", 3000);
+      return;
+    }
+
+    const id = (el.deleteBox.value||"").trim().toUpperCase();
+    if (!id) return;
+
+    const ch = selectedChannel();
+    const node = `/${today()}/DATA_SCAN/${ch}/${id}`;
+    const snap = await get(ref(db, node));
+
+    // 1. Nếu không có đơn => báo luôn
+    if (!snap.exists()) {
+      playErr();
+      notice(`Không tìm thấy đơn ${id} để xoá.`, "warning", 2500);
+      el.deleteBox.value = "";
+      return;
+    }
+
+    // 2. Nếu có đơn => popup confirm
+    if (!window.confirm(`Bạn có chắc chắn muốn xoá đơn ${id}?`)) {
+      return; // user Cancel thì thôi
+    }
+
+    // 3. Thực hiện xoá
+    await remove(ref(db, node));
+    playOk();
+    notice(`🗑️ Đã xoá ${id}`, "success", 2000);
+    el.deleteBox.value = "";
+  };
+
+// state
+const scanStateByCh = {
+  SPX: { prevTotalPages: 1, userTouched: false },
+  GHN: { prevTotalPages: 1, userTouched: false },
+};
+
+// helper
+const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
+const toInt = v => Math.max(1, parseInt(v, 10) || 1);
+
+// Scan
+function setScanPage(n){
+  const totalPages = getScanTotalPages();
+  scanPageIndex = Math.min(Math.max(1, Number(n)||1), totalPages);
+  if (el2.scanPageDisp) el2.scanPageDisp.textContent = `${scanPageIndex}/${totalPages}`;
+  renderScan();
+}
+on(el2?.scanPrev, "click", () => setScanPage(scanPageIndex - 1));
+on(el2?.scanNext, "click", () => setScanPage(scanPageIndex + 1));
+
+// Cancel
+function getCancelTotalPages(){
+  const totalRows = getCancelRows().length;
+  return Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+}
+function setCancelPage(n){
+  const totalPages = getCancelTotalPages();
+  cancelPageIndex = Math.min(Math.max(1, Number(n)||1), totalPages);
+  if (el2.cancelPageDisp) el2.cancelPageDisp.textContent = `${cancelPageIndex}/${totalPages}`;
+  renderCancel();
+}
+on(el2?.cancelPrev, "click", () => setCancelPage(cancelPageIndex - 1));
+on(el2?.cancelNext, "click", () => setCancelPage(cancelPageIndex + 1));
+console.log('scanPrev:', !!el2?.scanPrev, 'scanNext:', !!el2?.scanNext);
+
+// ===== Render bảng Scan =====
+
+// Tính lát cắt
+function scanSliceBounds(total, pageSize, pageIndex){
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rem = total % pageSize;
+
+  // Không dư: các trang đều đủ pageSize
+  if (rem === 0) {
+    const end   = pageIndex * pageSize;
+    const start = end - pageSize;
+    return { start, end };
+  }
+
+  // Có dư: last page (page = totalPages) là phần dư (rem),
+  // các trang trước đó đều đủ pageSize và nằm TRƯỚC phần dư.
+  if (pageIndex === totalPages) {
+    const start = total - rem;
+    const end   = total;
+    return { start, end };
+  } else {
+    // Số trang nằm "sau" trang hiện tại (tính tới last page)
+    const blocksAfter = (totalPages - pageIndex);
+    const end   = total - rem - (blocksAfter - 0) * pageSize; // hoặc: total - rem - (blocksAfter * pageSize)
+    const start = end - pageSize;
+    return { start, end };
+  }
+}
+
+function renderScan(){
+  const rows = getScanRows();
+  const rowsFiltered = (typeof applySearch==="function") ? applySearch(rows) : rows;
+
+  // === Sort A→Z (cũ → mới) để đuôi là mới nhất ===
+  rowsFiltered.sort((a,b)=>{
+    const tsA = Number(a[1].ts||0) || parseTimeString(a[1].time_vn) || parseTimeString(a[1].time);
+    const tsB = Number(b[1].ts||0) || parseTimeString(b[1].time_vn) || parseTimeString(b[1].time);
+    return tsA - tsB;  // A→Z
+  });
+
+  const total = rowsFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // cập nhật auto-jump theo state hiện tại
+  const state = scanStateByCh[selectedChannel()] || { prevTotalPages:1, userTouched:false };
+  if (totalPages !== state.prevTotalPages) {
+    const wasOnLast = (scanPageIndex === state.prevTotalPages) || !state.userTouched;
+    scanPageIndex = wasOnLast ? totalPages : Math.min(scanPageIndex, totalPages);
+    state.prevTotalPages = totalPages;
+  }
+  scanPageIndex = Math.min(Math.max(1, scanPageIndex), totalPages);
+  scanStateByCh[selectedChannel()] = state;
+
+  // === TÍNH lát cắt (A→Z, trang cuối = phần dư) ===
+  const rem = total % PAGE_SIZE;
+  const isLast = (scanPageIndex === totalPages);
+
+  let start, end;
+  if (rem === 0) {
+    // Không dư: mọi trang đều đủ PAGE_SIZE
+    start = (scanPageIndex - 1) * PAGE_SIZE;
+    end   = scanPageIndex * PAGE_SIZE;
+  } else {
+    if (isLast) {
+      // Last page: chỉ chứa phần dư
+      start = total - rem;
+      end   = total;
+    } else {
+      // Các trang trước last: đủ PAGE_SIZE
+      start = (scanPageIndex - 1) * PAGE_SIZE;
+      end   = scanPageIndex * PAGE_SIZE;
+    }
+  }
+
+    // Chặn biên
+    start = Math.max(0, start);
+    end   = Math.min(total, end);
+
+    const slice = rowsFiltered.slice(start, end);
+
+  // Cập nhật UI “current/total”
+  if (el2.scanPageDisp) el2.scanPageDisp.textContent = `${scanPageIndex}/${totalPages}`;
+
+  // === Render ===
+  el2.tblScanBody.innerHTML = "";
+  for (let i = end - 1; i >= start; i--) {
+    const [id, ev] = rowsFiltered[i];
+
+    // STT toàn cục đúng, giảm dần: i là index 0-based → STT = i + 1
+    const sttGlobal = i + 1;
+
+    const tr = document.createElement("tr");
+    const bgClass = (ev.is_cancelled==="Yes" && (ev.time_vn || ev.ts)) ? "bg-yes" : (ev.is_cancelled==="No" ? "bg-no" : "");
+    tr.innerHTML = `
+      <td>${sttGlobal}</td>
+      <td>${id}</td>
+      <td>${ev.time_vn || ""}</td>
+      <td>${ev.user || ""}</td>
+      <td class="${bgClass}">${ev.is_cancelled || "No"}</td>
+    `;
+    el2.tblScanBody.appendChild(tr);
+  };
+
+  // “m/100”
+  const scanShowEl = document.getElementById("scanShow");
+  if (scanShowEl) scanShowEl.textContent = `${slice.length}/${PAGE_SIZE}`;
+}
+
+// ==== Paging cho bảng Cancel ====
+// ==== CANCEL ====
+on(el2?.cancelPrev, "click", () => setCancelPage(cancelPageIndex - 1));
+on(el2?.cancelNext, "click", () => setCancelPage(cancelPageIndex + 1));
+on(el2?.cancelPage, "change", () => setCancelPage(toInt(el2.cancelPage.value)));
+on(el2?.cancelPage, "keydown", (e) => { if (e.key === "Enter") setCancelPage(toInt(e.currentTarget.value)); });
+on(el2?.cancelPage, "input", () => { userTouchedCancelPage = true; }); // người dùng chỉnh tay
+
+// ===== Render bảng Cancel =====
+function renderCancel(){
+  const rows = getCancelRows();
+
+  // sort: ưu tiên cancel_time rồi scan_ts (mới → cũ)
+  const rowsSorted = applySearch(rows).sort((a,b)=>{
+    const A = Number(a[1].cancel_time||0) || Number(a[1].scan_ts||0);
+    const B = Number(b[1].cancel_time||0) || Number(b[1].scan_ts||0);
+    return B - A;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(rowsSorted.length / PAGE_SIZE));
+  cancelPageIndex = Math.min(Math.max(1, cancelPageIndex || 1), totalPages);
+  if (el2.cancelPageDisp) el2.cancelPageDisp.textContent = `${cancelPageIndex}/${totalPages}`;
+
+  const total = rowsSorted.length;
+  const start = (cancelPageIndex - 1) * PAGE_SIZE;
+  const slice = rowsSorted.slice(start, start + PAGE_SIZE);
+
+el2.tblCancelBody.innerHTML = "";
+slice.forEach(([id, ev], idx) => {
+  // STT toàn cục giảm dần (mới nhất có số lớn nhất, giống Scan)
+  const sttGlobal = total - (start + idx);
+
+  const hasScan = !!(ev.scan_ts || ev.time_vn || ev.user);
+  const scanTimeText = hasScan
+    ? (ev.time_vn || (ev.scan_ts ? formatISO(ev.scan_ts * 1000) : ""))
+    : "";
+
+  const isCanceledAtScan = hasScan ? (ev.is_cancelled || "No") : "";
+  const isYes = (isCanceledAtScan === "Yes");
+  const isNo  = (isCanceledAtScan === "No");
+
+  const tr = document.createElement("tr");
+  const bgClass = isYes ? "bg-yes" : (isNo ? "bg-no" : "");
+  tr.innerHTML = `
+    <td>${sttGlobal}</td>
+    <td>${id}</td>
+    <td>${scanTimeText}</td>
+    <td>${hasScan ? (ev.user || "") : ""}</td>
+    <td class="${bgClass}">${isCanceledAtScan || "-"}</td>
+  `;
+  el2.tblCancelBody.appendChild(tr);
+});
+
+  // Cập nhật header đếm
+  const ch = selectedChannel();
+  const scanAllCh   = ALL_EVENTS["DATA_SCAN"]?.[ch] || {};
+  const cancelSrcCh = ALL_EVENTS["Data-cancel"]?.[ch] || {};
+  const totalCancelInScan  = Object.values(scanAllCh).filter(x => x?.is_cancelled === "Yes").length;
+  const totalCancelFromSrc = Object.keys(cancelSrcCh).length;
+  const cancelHdr = document.getElementById("cancelCountsHdr");
+  if (cancelHdr) cancelHdr.textContent = `(${totalCancelInScan} / ${totalCancelFromSrc})`;
+}
+
+// Render 2 bảng
+function renderBoth(){
+  const ch = selectedChannel();
+
+  // dữ liệu theo kênh
+  const scanAllCh = ALL_EVENTS["DATA_SCAN"]?.[ch] || {};
+  const totalScan = Object.keys(scanAllCh).length;
+
+  // batch hiện tại
+  const batchId   = Number(currentBatchByCh[ch] || 1);
+  const countCurr = Object.values(scanAllCh).filter(x => x?.batch_id === batchId).length;
+  const countPrev = (batchId > 1)
+    ? Object.values(scanAllCh).filter(x => x?.batch_id === (batchId - 1)).length
+    : 0;
+
+  // chuỗi thống kê cạnh tiêu đề "Scan hôm nay"
+  const statsEl = document.getElementById("scanStats");
+  if (statsEl) {
+    const loopTimes = Math.max(0, (batchId));
+    statsEl.innerHTML = [
+      `[Tổng: ${totalScan}]`,
+      ``,
+      `Batch: ${loopTimes}`,
+      `-`,
+      `Hiện tại: ${countCurr}`,
+      `-`,
+      `Trước đó: ${countPrev}`,
+    ].map(x => `<span>${x}</span>`).join(" ");
+  }
+
+  // thống kê hủy
+  const cancelSrcCh = ALL_EVENTS["Data-cancel"]?.[ch] || {};
+  const totalCancelInScan  = Object.values(scanAllCh).filter(x => x?.is_cancelled==="Yes").length;
+  const totalCancelFromSrc = Object.keys(cancelSrcCh).length;
+  document.getElementById("cancelCountsHdr").textContent = `${totalCancelInScan} / ${totalCancelFromSrc}`;
+
+  // render 2 bảng
+  try{ renderScan(); }catch(e){ console.warn("[renderScan] skip:", e); }
+  try{ renderCancel(); }catch(e){ console.warn("[renderCancel] skip:", e); }
+}
+
+/* === REALTIME LISTENERS === */
+let unsubs = { batch: null, data: null, cancel: null };
+
+function listenBatch(dateKey){
+  if (unsubs.batch) { unsubs.batch(); unsubs.batch = null; }
+  const r = ref(db, `/${dateKey}/BATCH`);
+  const cb = snap => { currentBatchByCh = { SPX:1, GHN:1, NJV:1, ...(snap.val()||{}) }; renderBoth(); };
+  unsubs.batch = onValue(r, cb);   // onValue v9+ trả về unsubscribe()
+}
+
+function listenDataScan(dateKey){
+  if (unsubs.data) { unsubs.data(); unsubs.data = null; }
+  const r = ref(db, `/${dateKey}/DATA_SCAN`);
+  const cb = snap => { ALL_EVENTS.DATA_SCAN = snap.val() || {}; renderBoth(); };
+  unsubs.data = onValue(r, cb);
+}
+
+function listenCancel(dateKey){
+  if (unsubs.cancel) { unsubs.cancel(); unsubs.cancel = null; }
+  const r = ref(db, `/${dateKey}/Data-cancel`);
+  const cb = snap => {
+    const raw = snap.val() || {};
+    CANCEL_MAP = {};
+    for (const ch of Object.keys(raw||{})) {
+      for (const tracking of Object.keys(raw[ch]||{})) {
+        const item = raw[ch][tracking];
+        if (item && typeof item === "object" && "cancel_time" in item) {
+          CANCEL_MAP[tracking.toUpperCase()] = { cancel_time: Number(item.cancel_time)||0, channel: ch };
+        }
+      }
+    }
+    ALL_EVENTS["Data-cancel"] = raw; renderBoth();
+  };
+  unsubs.cancel = onValue(r, cb);
+}
+
+function bindAllListenersFor(dateKey){
+  listenBatch(dateKey);
+  listenDataScan(dateKey);
+  listenCancel(dateKey);
+}
+
+
+/* === BINDINGS === */
+bindToggle(el.chanGroup, () => {
+  // Reset trạng thái userTouched
+  const ch = selectedChannel();
+  (scanStateByCh[ch] ||= {prevTotalPages:1, userTouched:false}).userTouched = false;
+
+  // Nhảy về last page của channel mới
+  const totalPages = getScanTotalPages();
+  scanPageIndex   = totalPages;
+  const cancelPages = getCancelTotalPages();
+  cancelPageIndex = cancelPages;
+
+  renderBoth();
+});
+
+const doSearchBoth = () => {
+  scanPageIndex = 1;
+  cancelPageIndex = 1;
+  renderBoth();        // <-- update counters luôn
+
+  // đếm số kết quả tìm thấy
+  const q = (el.searchBox.value || "").trim().toUpperCase();
+  if (q) {
+    const scanMatches   = applySearch(getScanRows()).length;
+    const cancelMatches = applySearch(getCancelRows()).length;
+    const total = scanMatches + cancelMatches;
+
+    if (total > 0) {
+      notice(`🔎 Tìm thấy ${total} kết quả.`, "success", 10000);
+    } else {
+      notice(`❌ Không tìm thấy đơn nào khớp với "${q}"`, "warning", 10000);
+    }
+  }
+};
+
+el.btnSearch.addEventListener("click", doSearchBoth);
+el.searchBox.addEventListener("keydown", e => { if (e.key==="Enter") doSearchBoth(); });
+
+el2.cancelPrev && el2.cancelPrev.addEventListener("click", () => setCancelPage(cancelPageIndex - 1));
+el2.cancelNext && el2.cancelNext.addEventListener("click", () => setCancelPage(cancelPageIndex + 1));
+// bỏ hẳn mọi tham chiếu tới el2.cancelPage
+
+// ===== Events =====
+el.order.addEventListener("keydown", e => { if (e.key === "Enter") submitScan(); });
+el.btnNextBatch.addEventListener("click", doNextBatch);
+
+// User
+el.user.addEventListener("keydown", e => { if (e.key === "Enter") el.order.focus(); });
+
+// Delete:
+el.btnDelete.addEventListener("click", doDelete);
+el.deleteBox.addEventListener("keydown", e => { if (e.key==="Enter") doDelete(); });
+
+/* === KHỞI TẠO === */
+setInputsEnabled(false);
+notice("Đang kết nối Firebase…");
+setScanPage(1);
+setCancelPage(1);
+watchConnectivity();
+bindAllListenersFor(SELECTED_KEY);
+
+// Sanity check: log node gốc hôm nay để chắc chắn đúng path
+get(ref(db, `/${today()}`)).then(s => console.log("[SNAP today]", today(), s.exists() ? Object.keys(s.val()||{}) : "not-exists"))
+.catch(err => console.error("[SNAP today] error", err));
+</script>
+
+{% endblock %}
