@@ -231,11 +231,18 @@
  // ===== MODULAR SOUND SYSTEM =====
 let playOk, playErr, playCancel, playSysOk, playSysErr;
 
-// Dynamic import for sound system
+// Dynamic import for sound system with Flask-built URLs
 (async () => {
   try {
     const soundModule = await import('../static/js/sound-system.js');
-    await soundModule.initSounds();
+    const STATIC_AUDIO_URLS = {
+      "cancel.mp3":      "{{ url_for('static', filename='sounds/cancel.mp3') }}",
+      "error.mp3":       "{{ url_for('static', filename='sounds/error.mp3') }}",
+      "ok.mp3":          "{{ url_for('static', filename='sounds/ok.mp3') }}",
+      "sys_error.mp3":   "{{ url_for('static', filename='sounds/sys_error.mp3') }}",
+      "sys_success.mp3": "{{ url_for('static', filename='sounds/sys_success.mp3') }}"
+    };
+    await soundModule.initSounds(STATIC_AUDIO_URLS);
     playOk = soundModule.playOk;
     playErr = soundModule.playErr;
     playCancel = soundModule.playCancel;
@@ -271,6 +278,10 @@ function resetAll(){
   SELECTED_KEY = today();
   if (el.datePicker) el.datePicker.value = SELECTED_ISO;
 
+  // Rebind realtime listeners to the new (today) key
+  try { bindAllListenersFor(SELECTED_KEY); } catch (e) { console.warn("[resetAll] bindAllListenersFor failed", e); }
+
+  // Re-render after rebinding
   renderBoth();
 
   // nhảy về trang cuối cùng của SPX
@@ -291,59 +302,7 @@ function resetAll(){
 const btnReset = document.getElementById("btnReset");
 if (btnReset) btnReset.addEventListener("click", resetAll);
 
-// Unlock autoplay (chỉ 1 biến)
-// Unlock autoplay theo chuẩn: ưu tiên WebAudio, fallback muted play
-let _audioUnlocked = false;
-
-async function unlockAudioOnce() {
-  if (_audioUnlocked) return;
-  _audioUnlocked = true;
-
-  // 1) Ưu tiên WebAudio: phát 1 buffer im lặng (không đụng file mp3)
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      const actx = new AudioCtx();
-      if (actx.state === "suspended" && actx.resume) {
-        // iOS Safari thường cần resume trong gesture
-        await actx.resume().catch(()=>{});
-      }
-      const buffer = actx.createBuffer(1, 1, actx.sampleRate); // 1 sample, silence
-      const src = actx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(actx.destination);
-      src.start(0);
-      return; // xong, đã “mở khóa” audio stack
-    }
-  } catch (e) {
-    // tiếp tục fallback
-  }
-
-  // 2) Fallback: play+pause tất cả audio nhưng tắt tiếng tuyệt đối
-  for (const a of _audioEls.values()) {
-    try {
-      const prevMuted  = a.muted;
-      const prevVolume = a.volume;
-      a.muted  = true;
-      a.volume = 0;
-      await a.play().then(()=>a.pause()).catch(()=>{});
-      a.currentTime = 0;     // về đầu
-      a.muted  = prevMuted;  // khôi phục trạng thái
-      a.volume = prevVolume;
-    } catch (e) {}
-  }
-}
-
-window.addEventListener("click",  unlockAudioOnce, { once: true });
-window.addEventListener("keydown", unlockAudioOnce, { once: true });
-
-
-function playByName(name) {
-  const a = _audioEls.get(name);
-  if (!a) return _beep(false);
-  a.currentTime = 0;
-  a.play().catch(()=>{});
-}
+/* sound unlock and playback handled by sound-system.js */
 
 // ===== Report (text + file) =====
 async function postJSON(url, body){
