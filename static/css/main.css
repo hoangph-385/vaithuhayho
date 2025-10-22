@@ -106,36 +106,69 @@ main {
 }
 
 .btn-action {
-  padding: 0px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: #f8f8f8;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
   cursor: pointer;
-  min-width: 80px;
-  height: 42px;
-  font-size: 16px;
+  min-width: 70px;
+  height: 32px;
+  font-size: 13px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
-.btn-action:hover {
-  background: #e6f0ff;
-  border-color: #1677ff;
-  color: #1677ff;
+.btn-action:hover:not(:disabled) {
+  background: #ff8a00;
+  border-color: #ff8a00;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-action:disabled {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-action:disabled:hover {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-primary {
-  background: #1677ff;
+  background: #333;
   color: #fff;
-  border-color: #1677ff;
+  border-color: #333;
+  height: 32px;
+  font-size: 13px;
+  padding: 6px 12px;
 }
 
-.btn-primary:hover {
-  background: #125ecc;
+.btn-primary:hover:not(:disabled) {
+  background: #ff8a00;
+  border-color: #ff8a00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-primary:disabled {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-danger {
@@ -151,27 +184,45 @@ main {
 }
 
 .btn-report {
-  padding: 0px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: #4570d5;
+  padding: 6px 12px;
+  border: 1px solid #ff8a00;
+  border-radius: 4px;
+  background: #ff8a00;
   color: #fff;
   cursor: pointer;
-  min-width: 80px;
-  height: 42px;
-  font-size: 16px;
+  min-width: 70px;
+  height: 32px;
+  font-size: 13px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
-.btn-report:hover {
-  background: #e6f0ff;
-  border-color: #1677ff;
-  color: #1677ff;
+.btn-report:hover:not(:disabled) {
+  background: #333;
+  border-color: #333;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-report:disabled {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-report:disabled:hover {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  transform: none;
+  box-shadow: none;
 }
 
 button {
@@ -970,7 +1021,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 .filter-btn {
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: #666;
   font-size: 10px;
   cursor: pointer;
   padding: 2px 4px;
@@ -978,16 +1029,16 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   border-radius: 2px;
   display: inline-block;
   vertical-align: middle;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .filter-btn:hover {
-  background: var(--border-color);
-  color: var(--text-color);
+  background: #f5f5f5;
+  color: #ff8a00;
 }
 
 .filter-btn.active {
-  background: var(--primary);
+  background: #ff8a00;
   color: white;
 }
 
@@ -1080,28 +1131,34 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 
 .filter-actions button {
   padding: 4px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #ccc;
   background: white;
-  color: var(--text-color);
+  color: #333;
   cursor: pointer;
   border-radius: 4px;
   font-size: 11px;
-  transition: all 0.2s;
+  height: 28px;
+  transition: all 0.2s ease;
 }
 
 .filter-actions button:hover {
-  background: var(--border-color);
+  background: #f5f5f5;
+  border-color: #ff8a00;
+  color: #ff8a00;
 }
 
 .filter-actions .btn-primary {
-  background: var(--primary);
+  background: #333;
   color: white;
-  border-color: var(--primary);
+  border-color: #333;
+  height: 32px;
+  font-size: 13px;
+  padding: 6px 12px;
 }
 
 .filter-actions .btn-primary:hover {
-  background: #0a3d91;
-  border-color: #0a3d91;
+  background: #ff8a00;
+  border-color: #ff8a00;
 }
 
 /* Table container without scroll */
