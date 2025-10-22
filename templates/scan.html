@@ -1240,8 +1240,13 @@
     const options = el("filterOptions");
     const modal = el("filterModal");
 
-    // Get unique values for this column
-    const values = [...new Set(DASH.rows.map(row => String(row[column] || "")).filter(v => v.trim()))].sort();
+    // Get unique values for this column, including blank values
+    const allValues = DASH.rows.map(row => String(row[column] || ""));
+    const nonEmptyValues = [...new Set(allValues.filter(v => v.trim()))].sort();
+    const hasEmptyValues = allValues.some(v => !v.trim());
+
+    // Combine non-empty values with blank option if there are empty values
+    const values = hasEmptyValues ? ["(Trống)", ...nonEmptyValues] : nonEmptyValues;
 
     title.textContent = `Lọc: ${getColumnTitle(column)}`;
 
@@ -1324,7 +1329,19 @@
         if(!val) continue;
         if (Array.isArray(val)) {
           // New filter format - array of selected values
-          if (!val.includes(String(row[k] || ""))) return false;
+          const cellValue = String(row[k] || "");
+          const isEmpty = !cellValue.trim();
+
+          // Check if the value matches any selected filter
+          const matches = val.some(filterValue => {
+            if (filterValue === "(Trống)") {
+              return isEmpty; // Match empty values
+            } else {
+              return cellValue === filterValue; // Exact match for non-empty values
+            }
+          });
+
+          if (!matches) return false;
         } else {
           // Old format fallback
           const q=v=>String(v||"").toLowerCase();

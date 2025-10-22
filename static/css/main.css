@@ -1011,11 +1011,13 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   width: 90%;
   max-height: 400px;
   overflow-y: auto;
+  font-size: 11px;
 }
 
 .filter-content h4 {
   margin: 0 0 15px 0;
   color: var(--primary);
+  font-size: 13px;
 }
 
 .filter-options {
@@ -1023,14 +1025,17 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: 4px;
+  font-size: 11px;
 }
 
 .filter-option {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-bottom: 1px solid #eee;
   cursor: pointer;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .filter-option:hover {
@@ -1038,28 +1043,54 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 .filter-option input[type="checkbox"] {
-  margin-right: 8px;
+  margin-right: 6px;
+  transform: scale(0.9);
+}
+
+.filter-option label {
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.filter-search input {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 100%;
 }
 
 .filter-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-top: 15px;
   justify-content: flex-end;
 }
 
 .filter-actions button {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 1px solid var(--border-color);
   background: white;
+  color: var(--text-color);
   cursor: pointer;
   border-radius: 4px;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.filter-actions button:hover {
+  background: var(--border-color);
 }
 
 .filter-actions .btn-primary {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+}
+
+.filter-actions .btn-primary:hover {
+  background: #0a3d91;
+  border-color: #0a3d91;
 }
 
 /* Table container without scroll */
