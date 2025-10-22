@@ -157,7 +157,10 @@
     <div class="table-wrap card">
   <div class="title">
     <span>Dashboard nhân sự</span>
-    <button id="btnExportXlsx" class="btn-report" title="Tải Excel">Export Excel</button>
+    <div>
+      <button id="btnResetFilters" class="btn-action" title="Reset tất cả bộ lọc">Reset Filters</button>
+      <button id="btnExportXlsx" class="btn-report" title="Tải Excel">Export Excel</button>
+    </div>
   </div>
 
 
@@ -1220,6 +1223,9 @@
       DASH.page=v; renderDashTable();
     });
 
+    // Reset filters button
+    el("btnResetFilters")?.addEventListener('click', resetAllFilters);
+
     // Filter modal events
     el("filterCancel")?.addEventListener('click', hideFilterModal);
     el("filterModal")?.addEventListener('click', (e)=>{
@@ -1233,6 +1239,22 @@
   // Filter functionality
   let currentFilterColumn = null;
   let currentFilterValues = new Set();
+
+  function resetAllFilters() {
+    // Clear all filters
+    DASH.filters = {};
+    DASH.page = 1;
+
+    // Remove active state from all filter buttons
+    $$('.filter-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Re-render table with all data
+    applyDashFiltersAndRender();
+
+    // Show success message
+    notice("Đã reset tất cả bộ lọc", "success", 2000);
+    playSysOk();
+  }
 
   function showFilterModal(column) {
     currentFilterColumn = column;
@@ -1252,11 +1274,24 @@
 
     // Build options HTML
     options.innerHTML = values.map(value => `
-      <div class="filter-option">
+      <div class="filter-option" data-value="${value}">
         <input type="checkbox" id="filter_${value}" value="${value}" ${currentFilterValues.has(value) ? 'checked' : ''}>
         <label for="filter_${value}">${value}</label>
       </div>
     `).join('');
+
+    // Add click handlers for the entire row
+    $$('#filterOptions .filter-option').forEach(option => {
+      option.addEventListener('click', (e) => {
+        // Don't trigger if user clicked directly on checkbox or label
+        if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') return;
+
+        const checkbox = option.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+        }
+      });
+    });
 
     modal.classList.add('show');
   }
