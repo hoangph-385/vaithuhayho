@@ -160,7 +160,6 @@ main {
   background: #333;
   color: #fff;
   border-color: #333;
-  height: 32px;
   font-size: 13px;
   padding: 6px 12px;
 }
@@ -1166,14 +1165,14 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   background: #333;
   color: white;
   border-color: #333;
-  height: 32px;
-  font-size: 13px;
+  height: 28px;
+  font-size: 11px;
   padding: 6px 12px;
 }
 
 .filter-actions .btn-primary:hover {
-  background: #ff8a00;
-  border-color: #ff8a00;
+  background: #e7e1db;
+  border-color: #cccccc;
 }
 
 /* Table container without scroll */
