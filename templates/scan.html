@@ -83,18 +83,18 @@
     <!-- Counter phải -->
     <div class="grid">
       <div class="counter card">
-        <h3 id="in-total">Total In: 1</h3>
+        <h3 id="in-total">Total Scan In</h3>
         <div id="in-shifts"><div class="block">
-          <div class="stats-line"><strong>Ca 13:30 - 1</strong></div>
-          <div class="stats-line vendors"><span>GRGR: 1</span></div>
+          <div class="stats-line"><strong></strong></div>
+          <div class="stats-line vendors"><span></span></div>
         </div></div>
         <hr>
-        <div id="in-vendor-stats" class="stats-line vendors"><span>GRGR: 1</span></div>
+        <div id="in-vendor-stats" class="stats-line vendors"><span></span></div>
       </div>
 
       <div class="counter card">
-        <h3 id="out-total">Total Out: 1 / 1</h3>
-        <div id="out-shifts"><div class="stats-line">Ca 13:30  --  1 / 1</div></div>
+        <h3 id="out-total">Total Scan Out</h3>
+        <div id="out-shifts"><div class="stats-line"></div></div>
         <hr>
         <div id="out-vendor-stats" class="stats-line"></div>
       </div>
@@ -631,49 +631,112 @@
   }
 
   function renderInCounters(stats){
-    const raw=stats.raw||{};
-    el("in-total").textContent=`Total In: ${stats.total_in}`;
+    const raw = stats.raw || {};
+    el("in-total").textContent = `Total Scan In: ${stats.total_in || 0}`;
 
-    const shiftBlocks=[];
-    for(const sh of Object.keys(raw).sort()){
-      const group=raw[sh]||{};
-      const total=Object.values(group).reduce((a,sg)=>a+Object.keys(sg).length,0);
-      const vendorSpans=Object.entries(group).map(([vn,sg])=>`<span>${vn}: ${Object.keys(sg).length}</span>`).join("");
-      shiftBlocks.push(
-        `<div class="block">
-          <div class="stats-line"><strong>Ca ${sh} - ${total}</strong></div>
-          <div class="stats-line vendors">${vendorSpans}</div>
-        </div>`
-      );
-    }
-    el("in-shifts").innerHTML = shiftBlocks.join("");
+    // Helper: map vendor name to canonical columns
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const toCanon = (name) => {
+      const s = String(name || "").toUpperCase();
+      if (s.includes("AGARI")) return "Agari";
+      if (s.includes("MBB"))   return "MBB";
+      // Handle both GRG and GRGR
+      if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
+      if (s.includes("HTVN"))  return "HTVN";
+      return null; // ignore others in this table
+    };
 
-    const vendorCounts={};
-    for(const group of Object.values(raw)){
-      for(const [vn, sg] of Object.entries(group||{})){
-        vendorCounts[vn]=(vendorCounts[vn]||0)+Object.keys(sg).length;
+    // Build per-shift rows
+    const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
+    const rows = [];
+    let grand = { Agari:0, MBB:0, GRG:0, HTVN:0 };
+
+    for (const sh of shifts) {
+      const group = raw[sh] || {};
+      const counts = { Agari:0, MBB:0, GRG:0, HTVN:0 };
+      for (const [vn, sg] of Object.entries(group)) {
+        const canon = toCanon(vn);
+        if (!canon) continue;
+        counts[canon] += Object.keys(sg || {}).length;
       }
+      grand.Agari += counts.Agari;
+      grand.MBB   += counts.MBB;
+      grand.GRG   += counts.GRG;
+      grand.HTVN  += counts.HTVN;
+      const total = counts.Agari + counts.MBB + counts.GRG + counts.HTVN;
+      rows.push([sh, counts.Agari, counts.MBB, counts.GRG, counts.HTVN, total]);
     }
 
-    const totalSpans = Object.entries(vendorCounts)
-    .sort(([,na],[,nb]) => nb - na)
-    .map(([vn,n])=>`<span>${vn}: ${n}</span>`).join("");
-    el("in-vendor-stats").className="stats-line vendors";
-    el("in-vendor-stats").innerHTML=totalSpans;
+    // Render grid table into #in-shifts
+    const hdr = ["Ca", ...canonVendors, "Total"]; // 6 columns
+    const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join("")}</tr></thead>`;
+    const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN;
+    const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${grand.Agari}</th><th style=\"text-align:center\">${grand.MBB}</th><th style=\"text-align:center\">${grand.GRG}</th><th style=\"text-align:center\">${grand.HTVN}</th><th style=\"text-align:center\">${gTotal}</th></tr></tfoot>`;
+    const tableHtml = `<table class="table">${thead}${tbody}${tfoot}</table>`;
+    el("in-shifts").innerHTML = tableHtml;
+
+    // Clear old overall vendor stats under the grid (redundant now)
+    const overall = el("in-vendor-stats");
+    if (overall) { overall.innerHTML = ""; }
   }
 
   function renderOutCounters(stats){
-    const raw=stats.raw||{};
-    let totIn=0, totOut=0, html="";
-    for(const sh of Object.keys(raw).sort()){
-      const group=raw[sh]||{};
-      const totalInShift = Object.values(group).reduce((a,sg)=>a+Object.keys(sg).length,0);
-      const totalOutShift = Object.values(group).reduce((a,sg)=>a+Object.values(sg).filter(s=>s.gsheet_time_out||s.type==="done").length,0);
-      html += `<div class="stats-line">Ca ${sh}  --  ${totalOutShift} / ${totalInShift}</div>`;
-      totIn += totalInShift; totOut += totalOutShift;
+    const raw = stats.raw || {};
+
+    // Canonical vendor mapping to align with In grid
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const toCanon = (name) => {
+      const s = String(name || "").toUpperCase();
+      if (s.includes("AGARI")) return "Agari";
+      if (s.includes("MBB"))   return "MBB";
+      if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
+      if (s.includes("HTVN"))  return "HTVN";
+      return null;
+    };
+
+    const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
+    const rows = [];
+    let grand = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0} };
+    let totIn=0, totOut=0;
+
+    for(const sh of shifts){
+      const group = raw[sh] || {};
+      const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0} };
+      for(const [vn, sg] of Object.entries(group)){
+        const canon = toCanon(vn);
+        if(!canon) continue;
+        const staff = Object.values(sg || {});
+        const inN   = staff.length;
+        const outN  = staff.filter(s => s && (s.gsheet_time_out || s.type === "done")).length;
+        counts[canon].in  += inN;
+        counts[canon].out += outN;
+      }
+      grand.Agari.in += counts.Agari.in; grand.Agari.out += counts.Agari.out;
+      grand.MBB.in   += counts.MBB.in;   grand.MBB.out   += counts.MBB.out;
+      grand.GRG.in   += counts.GRG.in;   grand.GRG.out   += counts.GRG.out;
+      grand.HTVN.in  += counts.HTVN.in;  grand.HTVN.out  += counts.HTVN.out;
+
+      const rowVendorCells = canonVendors.map(v => `${counts[v].out}/${counts[v].in}`);
+      const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in;
+      const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out;
+      totIn += inSum; totOut += outSum;
+      rows.push([sh, ...rowVendorCells, `${outSum}/${inSum}`]);
     }
-    el("out-shifts").innerHTML=html;
-    el("out-total").textContent=`Total Out: ${totOut} / ${totIn}`;
+
+    // Render grid table for Out: each cell is out/in
+    const hdr = ["Ca", ...canonVendors, "Total"]; // 6 columns
+    const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join("")}</tr></thead>`;
+    const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in;
+    const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out;
+    const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${grand.Agari.out}/${grand.Agari.in}</th><th style=\"text-align:center\">${grand.MBB.out}/${grand.MBB.in}</th><th style=\"text-align:center\">${grand.GRG.out}/${grand.GRG.in}</th><th style=\"text-align:center\">${grand.HTVN.out}/${grand.HTVN.in}</th><th style=\"text-align:center\">${gOut}/${gIn}</th></tr></tfoot>`;
+    const tableHtml = `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
+    el("out-shifts").innerHTML = tableHtml;
+    el("out-total").textContent = `Total Scan Out: ${totOut} / ${totIn}`;
+
+    const overall = el("out-vendor-stats");
+    if (overall) { overall.innerHTML = ""; }
   }
 
   // Dashboard
@@ -703,7 +766,7 @@
   function renderDashboardList(raw){
     const flat=flattenRecords(raw);
     flat.sort((b,a)=>{
-      const ao=a.gsheet_time_out||"", bo=b.gsheet_time_out||"";
+      const ao=a.gsheet_time_in||"", bo=b.gsheet_time_in||"";
       if(ao && bo) return bo.localeCompare(ao);
       if(ao && !bo) return -1;
       if(!ao && bo) return 1;
@@ -778,25 +841,75 @@
   function renderTaskRightCards(raw){
     const s = computeTaskStats(raw);
 
-    // Đổ 1 dòng vào chính <h3> để giữ CSS title
+    // Update headers
     const h60 = el('task60-card')?.querySelector('h3');
     const h30 = el('task30-card')?.querySelector('h3');
     if (h60) h60.textContent = `Nghỉ Trưa: ${s.total_b60} / Vào Ca: ${s.total_b60_in} / Total: ${s.total_in}`;
     if (h30) h30.textContent = `Nghỉ OT: ${s.total_b30} / Vào Ca: ${s.total_b30_in} / Total: ${s.total_in}`;
 
-    // Ẩn các div tổng cũ (nếu không cần nữa)
+    // Hide legacy blocks
     el('task60-total')?.classList.add('is-hidden');
     el('task30-total')?.classList.add('is-hidden');
 
-    // Phần theo ca (nếu muốn giữ)
-    const s60 = el('task60-shifts'), s30 = el('task30-shifts');
-    const shifts = Object.keys(s.byShift).sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true}));
-    const mk = (rowFn) => shifts.map(sh=>{
-      const S = s.byShift[sh];
-      return `<div class="stats-line">Ca ${sh} — ${rowFn(S)} / ${S.total_in}</div>`;
-    }).join("");
-    if (s60) s60.innerHTML = mk((S)=>`${S.b60} / ${S.b60_in}`);
-    if (s30) s30.innerHTML = mk((S)=>`${S.b30} / ${S.b30_in}`);
+    // Canonical vendor mapping
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const toCanon = (name) => {
+      const s = String(name || "").toUpperCase();
+      if (s.includes("AGARI")) return "Agari";
+      if (s.includes("MBB"))   return "MBB";
+      if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
+      if (s.includes("HTVN"))  return "HTVN";
+      return null;
+    };
+
+    const shifts = Object.keys(raw || {}).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
+
+    // Build tables for 60' and 30'
+    function buildTable(kind){
+      // kind: '60' or '30'
+      const rows = [];
+      const grand = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0} };
+      for (const sh of shifts){
+        const group = raw[sh] || {};
+        const counts = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0} };
+        for (const [vn, sg] of Object.entries(group)){
+          const canon = toCanon(vn); if(!canon) continue;
+          const staff = Object.values(sg || {});
+          // a = total break opened, b = total returned, in = total scan in of that vendor/shift
+          let a=0, b=0, inN=0;
+          inN = staff.length;
+          if (kind === '60') {
+            a = staff.filter(s => !!(s && s.break_60)).length;
+            b = staff.filter(s => !!(s && s.break_60_in)).length;
+          } else {
+            a = staff.filter(s => !!(s && s.break_30)).length;
+            b = staff.filter(s => !!(s && s.break_30_in)).length;
+          }
+          counts[canon].a  += a; counts[canon].b  += b; counts[canon].in += inN;
+        }
+        // accumulate grand totals
+        for (const v of canonVendors){ grand[v].a += counts[v].a; grand[v].b += counts[v].b; grand[v].in += counts[v].in; }
+        const sumA  = canonVendors.reduce((t,v)=> t + counts[v].a , 0);
+        const sumB  = canonVendors.reduce((t,v)=> t + counts[v].b , 0);
+        const sumIn = canonVendors.reduce((t,v)=> t + counts[v].in, 0);
+        // cell text order: nghỉ/vao/scan-in
+        rows.push([sh, ...canonVendors.map(v => `${counts[v].a}/${counts[v].b}/${counts[v].in}`), `${sumA}/${sumB}/${sumIn}`]);
+      }
+
+      const hdr = ["Ca", ...canonVendors, "Total"];
+      const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+      const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      const gA  = canonVendors.reduce((t,v)=> t + grand[v].a , 0);
+      const gB  = canonVendors.reduce((t,v)=> t + grand[v].b , 0);
+      const gIn = canonVendors.reduce((t,v)=> t + grand[v].in, 0);
+      const tfoot = `<tfoot><tr><th>Grand Total</th>${canonVendors.map(v=>`<th style=\"text-align:center\">${grand[v].a}/${grand[v].b}/${grand[v].in}</th>`).join('')}<th style=\"text-align:center\">${gA}/${gB}/${gIn}</th></tr></tfoot>`;
+      return `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
+    }
+
+    const s60 = el('task60-shifts');
+    const s30 = el('task30-shifts');
+    if (s60) s60.innerHTML = buildTable('60');
+    if (s30) s30.innerHTML = buildTable('30');
   }
 
   /* ====================== CONTROLLERS ====================== */

@@ -430,6 +430,50 @@ table td {
   color: brown;
 }
 
+/* Cohesive table styling for In/Out counters */
+.counter .table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.counter .table thead th {
+  background: #f7f7fa;
+  color: #374151;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.counter .table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.counter .table tbody tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.counter .table tfoot th,
+.counter .table tfoot td {
+  background: #f3f4f6;
+  font-weight: 700;
+  padding: 9px 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Align numbers and keep shift column centered */
+.counter .table tbody td:not(:first-child),
+.counter .table tfoot td:not(:first-child),
+.counter .table tfoot th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .stats-line {
   font-size: 14px;
   margin: 4px 0;
@@ -940,11 +984,11 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   padding: 4px 6px;
   border: 1px solid var(--border-color);
   max-width: 150px;
-  font-size: 13px; /* increased by ~2px */
+  font-size: 15px; /* increased by ~2px */
   line-height: 1.3;
   vertical-align: middle;
   text-align: center;
-  height: 34px;
+  height: 38px;
 }
 
 #tbl-dashboard th {
@@ -960,7 +1004,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   table-layout: auto;
   width: 100%;
   word-break: break-word;
-  font-size: 13px; /* increased by ~2px */
+  font-size: 15px; /* increased by ~2px */
 }
 
 /* Column widths cho dashboard */
