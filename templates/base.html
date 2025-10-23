@@ -13,8 +13,8 @@
 <body>
   <header>
     <a href="/" class="{% if request.path == '/' %}active{% endif %}">Trang chủ</a>
-    <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
     <a href="/handover" class="{% if request.path.startswith('/handover') %}active{% endif %}">Handover Tool</a>
+    <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
   </header>
 
   <main>

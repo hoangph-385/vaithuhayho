@@ -6,7 +6,8 @@
   window.API_BASE = window.API_BASE || "";
 </script>
 
-  <div id="notice" class="notice" data-kind="success"></div>
+<!-- ===== Notice ===== -->
+<div id="notice" class="notice"></div>
 
   <div class="row card space-between">
     <div class="row">
@@ -159,7 +160,7 @@
     <span>Dashboard nhân sự</span>
     <div>
       <button id="btnResetFilters" class="btn-action" title="Reset tất cả bộ lọc">Reset Filters</button>
-      <button id="btnExportXlsx" class="btn-report" title="Tải Excel">Export Excel</button>
+      <button id="btnExportXlsx" class="btn-action" title="Tải Excel">Export Excel</button>
     </div>
   </div>
 
@@ -388,10 +389,26 @@
   const notice = (msg, kind="info", timeout=3000) => {
     const n = el("notice");
     if (!n) return;
+
+    // If no message, clear content and styling and exit
+    if (!msg) {
+      n.textContent = "";
+      n.removeAttribute("data-kind");
+      return;
+    }
+
+    // Show message with kind
     n.dataset.kind = kind;
-    n.textContent = msg || "";
+    n.textContent = msg;
+
+    // Auto-clear after timeout: remove text and styling so background color doesn't linger
     if (notice._t) clearTimeout(notice._t);
-    if (timeout>0) notice._t = setTimeout(()=>n.textContent="", timeout);
+    if (timeout > 0) {
+      notice._t = setTimeout(() => {
+        n.textContent = "";
+        n.removeAttribute("data-kind");
+      }, timeout);
+    }
   };
 
   const todayKey = (d=new Date())=>{

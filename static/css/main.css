@@ -50,6 +50,15 @@ header a:hover {
   text-decoration-color: var(--accent);
 }
 
+/* ========== Dashboard Table Spacing ========== */
+.table-wrap .title {
+  margin-bottom: 16px;
+}
+
+.table-container {
+  margin-top: 8px;
+}
+
 header a.active {
   font-weight: 700;
   text-decoration: underline;
@@ -82,7 +91,7 @@ main {
   background: var(--border-color);
   cursor: pointer;
   min-width: 64px;
-  height: 42px;
+  height: 30px;
   font-size: 16px;
   display: inline-flex;
   align-items: center;
@@ -96,7 +105,7 @@ main {
   background: #ffb116;
   color: #000409;
   border-color: #ffffff;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .btn-toggle:hover {
@@ -179,7 +188,7 @@ main {
 
 .btn-danger:hover {
   background: #cc3c3d;
-  border-color: #cc3c3d;
+  border-color: #020000;
   text-decoration: underline;
 }
 
@@ -249,6 +258,11 @@ button {
   z-index: 1;
   opacity: 1;
   color: #8b7355;
+}
+
+/* Ẩn hộp thông báo khi không có nội dung để tránh giữ màu cũ */
+.notice:empty {
+  display: none;
 }
 
 .notice[data-kind="info"] {
@@ -362,9 +376,10 @@ table td {
 }
 
 .tab-btn.active {
-  background: #e8f0ff;
-  color: #0d47a1;
-  border-color: #b6ccff;
+  background: #ff8a00;
+  color: #fff;
+  border-color: #ff8a00;
+  font-weight: 700;
 }
 
 .card {
@@ -1203,10 +1218,10 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 .tab-btn.active {
-  background: var(--card-bg);
-  color: var(--primary);
-  border-bottom: 2px solid var(--primary);
-  font-weight: 600;
+  background: #ff8a00;
+  color: #fff;
+  border-color: #ff8a00;
+  font-weight: 700;
 }
 
 /* Thiết lập độ rộng tối ưu cho từng cột */
@@ -1327,6 +1342,19 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ========== Dashboard Spacing Override (Final) ========== */
+.table-wrap .title {
+  margin-bottom: 20px !important;
+}
+
+.table-wrap .table-container {
+  margin-top: 0 !important;
+}
+
+#tab-dash .table-wrap .title {
+  margin-bottom: 24px !important;
 }
 
 
