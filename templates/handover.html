@@ -20,8 +20,8 @@
   <div class="row">
     <input id="userName" type="text" placeholder="Nhập tên người bàn giao" spellcheck="false">
     <input id="orderId" type="text" placeholder="Nhập mã vận đơn (Enter để Scan)" spellcheck="false">
-    <button id="btnNextBatch" class="btn-action">Next batch</button>
-    <button id="btnReport" class="btn-report">Report</button>
+  <button id="btnNextBatch" class="btn-action">Next batch</button>
+  <button id="btnReport" class="btn-report">Export CSV</button>
   </div>
 
   <!-- ===== Report + Delete ===== -->
@@ -316,22 +316,95 @@ async function postJSON(url, body){
   return r.json().catch(()=> ({}));
 }
 
-// Gửi Report
-async function runReport(){
+// Export CSV thay cho gửi Seatalk
+function csvEscape(v){
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function buildScanCsvRows(){
+  // Lấy toàn bộ hàng Scan (đã áp dụng tìm kiếm nếu cần)
+  const rows = (typeof applySearch === 'function') ? applySearch(getScanRows()) : getScanRows();
+  // Sắp xếp cùng logic hiển thị: thời gian tăng dần để cuối là mới nhất (nhưng CSV ta có thể giữ tăng dần)
+  rows.sort((a,b)=>{
+    const tsA = Number(a[1].ts||0) || parseTimeString(a[1].time_vn) || parseTimeString(a[1].time);
+    const tsB = Number(b[1].ts||0) || parseTimeString(b[1].time_vn) || parseTimeString(b[1].time);
+    return tsA - tsB;
+  });
+  const header = ["STT","Mã đơn","Thời gian","User","Đã hủy","Batch"];
+  const lines = [header.map(csvEscape).join(",")];
+  rows.forEach(([id, ev], idx)=>{
+    lines.push([
+      idx+1,
+      id,
+      ev.time_vn || (ev.ts ? formatISO(ev.ts*1000) : ""),
+      ev.user || "",
+      ev.is_cancelled || "No",
+      ev.batch_id || ""
+    ].map(csvEscape).join(","));
+  });
+  return lines;
+}
+
+function buildCancelCsvRows(){
+  const rows = (typeof applySearch === 'function') ? applySearch(getCancelRows()) : getCancelRows();
+  // Sắp xếp mới → cũ giống bảng Cancel
+  rows.sort((a,b)=>{
+    const A = Number(a[1].cancel_time||0) || Number(a[1].scan_ts||0);
+    const B = Number(b[1].cancel_time||0) || Number(b[1].scan_ts||0);
+    return B - A;
+  });
+  const header = ["STT","Mã đơn","Thời điểm Cancel","Thời điểm Scan","User","Đã hủy"];
+  const lines = [header.map(csvEscape).join(",")];
+  rows.forEach(([id, ev], idx)=>{
+    const cancelText = ev.cancel_time ? formatISO(ev.cancel_time*1000) : "";
+    const scanText   = ev.time_vn || (ev.scan_ts ? formatISO(ev.scan_ts*1000) : "");
+    lines.push([
+      idx+1,
+      id,
+      cancelText,
+      scanText,
+      ev.user || "",
+      (ev.is_cancelled || "")
+    ].map(csvEscape).join(","));
+  });
+  return lines;
+}
+
+function exportHandoverCSV(){
   try{
-    // KHÔNG khóa toàn bộ input nữa; chỉ báo trạng thái
-    notice("Đang thực hiện Report (text + file)…");
-    const res = await postJSON("/api/report/run", { date: SELECTED_KEY }); // dùng ngày đang chọn
+    const ch = selectedChannel();
+    const day = SELECTED_KEY;
+
+    const parts = [];
+    // Section Scan
+    parts.push([`Scan - Channel: ${ch} - Date: ${day}`].join(","));
+    parts.push(buildScanCsvRows().join("\n"));
+    // Separator
+    parts.push("");
+    // Section Cancel
+    parts.push([`Cancel - Channel: ${ch} - Date: ${day}`].join(","));
+    parts.push(buildCancelCsvRows().join("\n"));
+
+    const csv = parts.join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }); // BOM cho Excel
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `handover_${ch}_${day}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     playSysOk();
-    const link = (res && res.seatalk && res.seatalk.file_url) ? res.seatalk.file_url : "";
-    notice(`✅ Đã gửi Report cho ngày ${SELECTED_KEY} qua Seatalk - nhóm Handover`, "success", 10000);
+    notice(`✅ Đã xuất CSV cho ${day} (${ch})`, "success", 6000);
   }catch(e){
+    console.error(e);
     playSysErr();
-    notice("❌ Report lỗi: " + e.message, "error", 10000);
+    notice("❌ Xuất CSV lỗi: " + (e.message||e), "error", 8000);
   }
 }
 
-document.getElementById("btnReport").addEventListener("click", runReport);
+document.getElementById("btnReport").addEventListener("click", exportHandoverCSV);
 
 function applyHistoricalMode(){
   const isToday = isSameDay(SELECTED_ISO, todayISO());
