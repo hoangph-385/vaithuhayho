@@ -9,7 +9,6 @@ import requests
 
 WEBHOOK_URL = os.getenv("SEATALK_WEBHOOK_URL", "")
 
-
 def seatalk_text(text: str):
     """Send text message to SeaTalk; tries few payload variants."""
     if not WEBHOOK_URL:

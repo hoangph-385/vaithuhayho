@@ -136,17 +136,17 @@
     <!-- Counter phải -->
     <div class="grid" id="task-right">
       <div class="counter card" id="task60-card">
-        <h3>Nghỉ Trưa: 1 / Vào Ca: 1 / Total: 1</h3>
+        <h3 id="task60-header">Nghỉ Trưa: 0 / Vào Ca: 0 / Total: 0</h3>
         <div id="task60-total" class="stats-line is-hidden"></div>
-        <div id="task60-shifts"><div class="stats-line">Ca 13:30 — 1 / 1 / 1</div></div>
+        <div id="task60-shifts"><div class="stats-line">Đang tải...</div></div>
         <hr>
         <div id="task60-vendor-stats" class="stats-line"></div>
       </div>
 
       <div class="counter card" id="task30-card">
-        <h3>Nghỉ OT: 1 / Vào Ca: 1 / Total: 1</h3>
+        <h3 id="task30-header">Nghỉ OT: 0 / Vào Ca: 0 / Total: 0</h3>
         <div id="task30-total" class="stats-line is-hidden"></div>
-        <div id="task30-shifts"><div class="stats-line">Ca 13:30 — 1 / 1 / 1</div></div>
+        <div id="task30-shifts"><div class="stats-line">Đang tải...</div></div>
         <hr>
         <div id="task30-vendor-stats" class="stats-line"></div>
       </div>
@@ -174,30 +174,24 @@
               <th class="sticky">Mã Vendor <button class="filter-btn" data-col="vendor_code" title="Lọc">⏷</button></th>
               <th class="sticky">Mã WFM <button class="filter-btn" data-col="wfm_code" title="Lọc">⏷</button></th>
               <th class="sticky">Mã WMS <button class="filter-btn" data-col="wms_user_id" title="Lọc">⏷</button></th>
-              <th class="sticky">Operator <button class="filter-btn" data-col="operator" title="Lọc">⏷</button></th>
-              <th class="sticky">Họ và Tên <button class="filter-btn" data-col="fullname" title="Lọc">⏷</button></th>
-              <th class="sticky">Giới tính <button class="filter-btn" data-col="gender" title="Lọc">⏷</button></th>
+              <th class="sticky tbl-col-fullname">Họ và Tên <button class="filter-btn" data-col="fullname" title="Lọc">⏷</button></th>
+              <th class="sticky tbl-col-gender">Giới tính <button class="filter-btn" data-col="gender" title="Lọc">⏷</button></th>
               <th class="sticky">Năm sinh <button class="filter-btn" data-col="birth_year" title="Lọc">⏷</button></th>
-              <th class="sticky">Time in <button class="filter-btn" data-col="gsheet_time_in" title="Lọc">⏷</button></th>
+              <th class="sticky">Shift In <button class="filter-btn" data-col="shift_in" title="Lọc">⏷</button></th>
               <th class="sticky">Nghỉ Trưa <button class="filter-btn" data-col="break_60" title="Lọc">⏷</button></th>
               <th class="sticky">Vào Ca Trưa <button class="filter-btn" data-col="break_60_in" title="Lọc">⏷</button></th>
               <th class="sticky">Nghỉ OT <button class="filter-btn" data-col="break_30" title="Lọc">⏷</button></th>
               <th class="sticky">Vào Ca OT <button class="filter-btn" data-col="break_30_in" title="Lọc">⏷</button></th>
-              <th class="sticky">Time Out <button class="filter-btn" data-col="gsheet_time_out" title="Lọc">⏷</button></th>
+              <th class="sticky">Shift Out <button class="filter-btn" data-col="shift_out" title="Lọc">⏷</button></th>
             </tr>
           </thead>
           <tbody id="tbody-dash">
-            <tr class="loading-row">
-              <td colspan="15" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
-                🔄 Đang tải dữ liệu...
-              </td>
-            </tr>
           </tbody>
         </table>
 
         <div class="pager" id="dash-pager">
           <button id="dash-prev" class="btn-action" disabled="">«</button>
-          <span class="page-info" id="dash-info">Trang 1 / 1 — 1 dòng</span>
+          <span class="page-info" id="dash-info">Trang 1 / 1 — 1 kết quả</span>
           <button id="dash-next" class="btn-action" disabled="">»</button>
           <span>Đến trang:</span>
           <input type="number" min="1" value="1" class="jump" id="dash-jump">
@@ -231,6 +225,9 @@
   const CONFIG = {
     API_BASE: window.API_BASE || ""   // same-origin
   };
+  // Enable/disable extra QA verification before marking scan success
+  // Set to true to call /wms/verify_scan API which should return { ok: true } when the scan is valid
+  CONFIG.ENABLE_QA_CHECK = true;
 
   // ===== MODULAR SOUND SYSTEM =====
   let playOk, playErr, playCancel, playSysOk, playSysErr;
@@ -685,20 +682,20 @@
   function normalizeDashRow(r){
     return {
       vendor_name:     r.vendor_name || "",
-      vendor_code:     r.vendor_code || r.vendorCode || r.vendor_id || "",
+      vendor_code:     (r.vendor_code || r.vendorCode || r.vendor_id || "").toString().toUpperCase(),
       wfm_code:        r.wfm_code || "",
-      wms_user_id:     r.wms_user_id || "",
-      operator:        r.operator || "",
-      fullname:        r.fullname || r.full_name || "",
-      gender:          r.gender || "",
+      wms_user_id:     (r.wms_user_id || "").toString(),
+      operator:        (r.operator || "").toString().toUpperCase(),
+      fullname:        (r.fullname || r.full_name || "").toString().toUpperCase(),
+      gender:          (r.gender || "").toString().toUpperCase(),
+      shift_in:        r.shift_in || r.shift || "",
+      shift_out:       r.shift_out || "",
       birth_year:      r.birth_year || "",
-      // shift:           r.shift || r.shift_in || "",
       gsheet_time_in:  r.gsheet_time_in || "",
       break_60:        r.break_60 || "",
       break_60_in:     r.break_60_in || "",
       break_30:        r.break_30 || "",
       break_30_in:     r.break_30_in || "",
-      // shift_out:       r.shift_out || "",
       gsheet_time_out: r.gsheet_time_out || ""
     };
   }
@@ -744,23 +741,23 @@
       const r=slice[i];
       const stt=start+i+1;
       const tr=document.createElement("tr");
-      tr.innerHTML = [
-        stt,
-        r.vendor_name,
-        r.vendor_code,
-        r.wfm_code,
-        r.wms_user_id,
-        r.operator,
-        r.fullname,
-        r.gender,
-        r.birth_year,
-        r.gsheet_time_in,  // Time in
-        r.break_60,        // Nghỉ Trưa
-        r.break_60_in,     // Vào Ca Trưa
-        r.break_30,        // Nghỉ OT
-        r.break_30_in,     // Vào Ca OT
-        r.gsheet_time_out  // Time Out
-      ].map(v => `<td>${v ?? ""}</td>`).join("");
+      const cells = [
+        { cls: '', value: stt },
+        { cls: '', value: r.vendor_name },
+        { cls: '', value: r.vendor_code },
+        { cls: '', value: r.wfm_code },
+        { cls: '', value: r.wms_user_id },
+        { cls: 'tbl-col-fullname', value: r.fullname },
+        { cls: 'tbl-col-gender', value: r.gender },
+        { cls: '', value: r.birth_year },
+        { cls: '', value: r.shift_in },  // Shift in (replaces Time in)
+        { cls: '', value: r.break_60 },        // Nghỉ Trưa
+        { cls: '', value: r.break_60_in },     // Vào Ca Trưa
+        { cls: '', value: r.break_30 },        // Nghỉ OT
+        { cls: '', value: r.break_30_in },     // Vào Ca OT
+        { cls: '', value: r.shift_out }  // Shift out (replaces Time Out)
+      ];
+      tr.innerHTML = cells.map(c => `<td class="${c.cls}">${c.value ?? ""}</td>`).join("");
       body.appendChild(tr);
     }
 
@@ -849,14 +846,30 @@
         }
       }
 
+      // Optional QA verification: don't mark scanned unless QA API confirms
+      if (CONFIG.ENABLE_QA_CHECK) {
+        try {
+          const qa = await callWms('/wms/verify_scan', { vendor_url: wfmText, staff_no });
+          if (!qa || qa.ok !== true) {
+            notice('Scan chưa được xác nhận bởi QA API.', 'error', 5000);
+            playSysErr();
+            return;
+          }
+        } catch (e) {
+          notice('Lỗi khi kiểm tra QA: ' + (e.message || e), 'error', 5000);
+          playSysErr();
+          return;
+        }
+      }
+
       // Gọi attendance & activity khi đã có staff_no
       await callWms("/wms/attendance", { warehouse: wh, type: 1, staff_no });
       const act = await callWms("/wms/activity", { warehouse: wh, staff_no, act_no: "A0020" });
       const operator    = act?.data?.staff_name || "";
       const wms_user_id = act?.data?.wms_user_id || "";
 
-      el("in-operator").textContent = operator || "?";
-      el("in-wmsid").textContent    = wms_user_id || "?";
+  el("in-operator").textContent = (operator || "?").toUpperCase();
+  el("in-wmsid").textContent    = wms_user_id || "?";
 
       const now = new Date();
       const gsheet_time_in = now.toLocaleString("en-GB", {
@@ -991,8 +1004,8 @@
       // 5) UI done
   notice(`✅ ${(resp?.data?.staff_name || info?.full_name || "")} ${task_time}`, "success", 5000);
   playSysOk();
-      el("task-operator").textContent = resp?.data?.staff_name || "";
-      el("task-wmsid").textContent    = resp?.data?.wms_user_id || "";
+  el("task-operator").textContent = (resp?.data?.staff_name || "").toUpperCase();
+  el("task-wmsid").textContent    = resp?.data?.wms_user_id || "";
 
       // (tuỳ chọn) refresh KPI & bảng break_60/break_30 tại đây
       // renderBreakTables(...);
@@ -1059,7 +1072,7 @@
 
       // Set UI từ record
       setPersonUI("out", info || rec, img_url ? await imgFromUrl(img_url) : "");
-      el("out-operator").textContent = rec.operator    || "";
+  el("out-operator").textContent = (rec.operator || "").toUpperCase();
       el("out-wmsid").textContent    = rec.wms_user_id || "";
 
       // Attendance Out
@@ -1138,6 +1151,9 @@
     el('dayPicker')?.addEventListener('change', start);
     el('warehouse')?.addEventListener('change', start);
     window.addEventListener('load', start);
+
+    // Start immediately once configured so UI updates without requiring extra navigation
+    try { start(); } catch(e){ console.warn('Realtime start failed (will retry on load/change):', e); }
   };
 
   /* ====================== INIT ====================== */
@@ -1369,13 +1385,14 @@
     try{
       const headers = [
         "Nhà Thầu","Mã Vendor","Mã WFM","Mã WMS","Operator",
-        "Họ và Tên","Giới tính","Năm sinh","Time in",
-        "Nghỉ Trưa","Vào Ca Trưa","Nghỉ OT","Vào Ca OT","Time Out"
+        "Họ và Tên","Giới tính","Năm sinh","Shift In","Time in",
+        "Nghỉ Trưa","Vào Ca Trưa","Nghỉ OT","Vào Ca OT","Shift Out","Time Out"
       ];
       const rows = (DASH.filtered?.length ? DASH.filtered : DASH.rows).map(r => ([
         r.vendor_name, r.vendor_code, r.wfm_code, r.wms_user_id, r.operator,
         r.fullname, r.gender, r.birth_year,
-        r.gsheet_time_in, r.break_60,  r.break_60_in, r.break_30,r.break_30_in, r.gsheet_time_out
+        r.shift_in || r.shift || "", r.gsheet_time_in,
+        r.break_60,  r.break_60_in, r.break_30, r.break_30_in, r.shift_out || "", r.gsheet_time_out
       ]));
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);

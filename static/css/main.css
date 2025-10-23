@@ -411,8 +411,8 @@ table td {
 }
 
 .avatar {
-  width: 140px;
-  height: 140px;
+  width: 180px;
+  height: 180px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 12px;
   object-fit: cover;
@@ -919,7 +919,7 @@ html.busy * {
 table.table { width: 100%; border-collapse: collapse; }
 table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-index: 2; }
 .pager { display:flex; gap:8px; align-items:center; padding: 8px 0; flex-wrap: wrap; }
-.pager .jump { width: 80px; }
+.pager .jump { width: 60px; height: fit-content; }
 
 /* Auto-fit columns cho handover tables */
 #tblScan th,
@@ -940,11 +940,11 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   padding: 4px 6px;
   border: 1px solid var(--border-color);
   max-width: 150px;
-  font-size: 11px;
+  font-size: 13px; /* increased by ~2px */
   line-height: 1.3;
   vertical-align: middle;
   text-align: center;
-  height: 32px;
+  height: 34px;
 }
 
 #tbl-dashboard th {
@@ -960,7 +960,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   table-layout: auto;
   width: 100%;
   word-break: break-word;
-  font-size: 11px;
+  font-size: 13px; /* increased by ~2px */
 }
 
 /* Column widths cho dashboard */
@@ -994,6 +994,11 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tbl-dashboard th:nth-child(10), /* Time in */
 #tbl-dashboard td:nth-child(10) { width: 100px; min-width: 100px; }
 
+/* utility column classes for dashboard */
+.tbl-col-fullname{ width:320px; min-width:180px; max-width:520px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tbl-col-gender{ width:60px; min-width:60px; text-align:center; white-space:nowrap; }
+
+
 #tbl-dashboard th:nth-child(11), /* Nghỉ Trưa */
 #tbl-dashboard td:nth-child(11) { width: 100px; min-width: 100px; }
 
@@ -1012,18 +1017,18 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 /* Responsive dashboard table */
 @media (max-width: 768px) {
   #tbl-dashboard {
-    font-size: 9px;
+    font-size: 11px; /* increased on mobile */
   }
 
   #tbl-dashboard th,
   #tbl-dashboard td {
     padding: 2px 3px;
     min-width: 60px;
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.2;
     text-align: center;
     vertical-align: middle;
-    height: 28px;
+    height: 30px;
   }
 
   .table-container {
@@ -1355,5 +1360,34 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tab-dash .table-wrap .title {
   margin-bottom: 24px !important;
 }
+
+/* Strong override for fullname and gender columns to ensure classes win over nth-child rules */
+/* Placed at end of file to increase specificity and avoid inline styles. */
+#tbl-dashboard th.tbl-col-fullname,
+#tbl-dashboard td.tbl-col-fullname {
+  width: 300px !important;
+  min-width: 180px !important;
+  max-width: 520px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-align: center !important;
+}
+
+#tbl-dashboard th.tbl-col-gender,
+#tbl-dashboard td.tbl-col-gender {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 90px !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* If the table uses nth-child rules elsewhere, ensure these classes still apply */
+#tbl-dashboard th.tbl-col-fullname:nth-child(7),
+#tbl-dashboard td.tbl-col-fullname:nth-child(7) { width: 300px !important; }
+#tbl-dashboard th.tbl-col-gender:nth-child(8),
+#tbl-dashboard td.tbl-col-gender:nth-child(8) { width: 60px !important; }
+
 
 

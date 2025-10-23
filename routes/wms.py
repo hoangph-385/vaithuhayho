@@ -402,3 +402,67 @@ def record_activity():
         "wms_user_id": wms_user_id,
         "raw": j
     })
+
+
+# ===================== VERIFY SCAN (QA) =====================
+@bp.route("/verify_scan", methods=["POST", "OPTIONS"])
+def verify_scan():
+    """Simple QA/verify endpoint used by frontend before marking scan.
+    Accepts JSON { vendor_url?, staff_no? } and returns { ok: True } when
+    a reasonable match is found from vanhanh.info or basic heuristics.
+    """
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    data = request.get_json(silent=True) or {}
+    vendor_url = (data.get('vendor_url') or data.get('vendor') or '').strip()
+    staff_no   = (data.get('staff_no') or '').strip()
+
+    # If vendor_url provided, try to fetch info
+    try:
+        if vendor_url:
+            vc = _to_vendor_code(vendor_url)
+            if vc:
+                # reuse info_staff_get logic but call the internal helper
+                # perform an HTTP GET to vanhanh (same as /info/<vendor_code>)
+                headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/html,application/json"}
+                url = _vanhanh_info_url(vc)
+                try:
+                    r = requests.get(url, headers=headers, timeout=10)
+                except Exception as ex:
+                    _errlog("VERIFY upstream error", error=str(ex))
+                    return jsonify({"retcode": 502, "message": f"vanhanh error: {ex}"}), 502
+
+                if r.status_code != 200:
+                    return jsonify({"retcode": r.status_code, "message": "vanhanh not found"}), 404
+
+                # try parse
+                is_json = "application/json" in (r.headers.get('content-type') or '').lower()
+                if is_json:
+                    try:
+                        j = r.json()
+                    except Exception:
+                        j = {}
+                    all_info = j.get('all_info') or {}
+                else:
+                    nd = _extract_next_data(r.text)
+                    all_info = (nd.get('props') or {}).get('pageProps', {}).get('all_info', {}) if nd else {}
+
+                # if we can pick a staff number or have a name, consider it verified
+                picked = _pick_staff_no_from_info({'all_info': all_info})
+                if picked or all_info.get('full_name') or all_info.get('vendor'):
+                    return jsonify({"ok": True, "wfm": picked}), 200
+                return jsonify({"ok": False, "message": "no data from vanhanh"}), 200
+
+        # fallback: if staff_no was provided, accept basic format
+        if staff_no:
+            # basic rule: non-empty and alphanumeric (client already validated length)
+            if re.match(r'^[A-Za-z0-9\-\_]+$', staff_no):
+                return jsonify({"ok": True, "wfm": staff_no}), 200
+            else:
+                return jsonify({"ok": False, "message": "invalid staff_no format"}), 200
+
+        return _err(400, "vendor_url or staff_no required")
+    except Exception as ex:
+        _errlog("VERIFY unexpected error", error=str(ex), trace=traceback.format_exc()[:300])
+        return jsonify({"retcode": 500, "message": f"verify error: {ex}"}), 500
