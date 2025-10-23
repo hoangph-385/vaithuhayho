@@ -668,11 +668,13 @@
     }
 
     // Render grid table into #in-shifts
-    const hdr = ["Ca", ...canonVendors, "Total"]; // 6 columns
-    const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join("")}</tr></thead>`;
-    const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
-    const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN;
-    const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${grand.Agari}</th><th style=\"text-align:center\">${grand.MBB}</th><th style=\"text-align:center\">${grand.GRG}</th><th style=\"text-align:center\">${grand.HTVN}</th><th style=\"text-align:center\">${gTotal}</th></tr></tfoot>`;
+    // Display label tweak: show 'GRGR' instead of 'GRG' without changing logic keys
+    const hdr = ["Ca", ...canonVendors.map(v => v === "GRG" ? "GRGR" : v), "Total"]; // 6 columns
+  const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join("")}</tr></thead>`;
+  const fmt0 = (v) => (Number(v) === 0 ? "-" : v);
+  const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${fmt0(c)}</td>`).join("")}</tr>`).join("")}</tbody>`;
+  const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN;
+  const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${fmt0(grand.Agari)}</th><th style=\"text-align:center\">${fmt0(grand.MBB)}</th><th style=\"text-align:center\">${fmt0(grand.GRG)}</th><th style=\"text-align:center\">${fmt0(grand.HTVN)}</th><th style=\"text-align:center\">${fmt0(gTotal)}</th></tr></tfoot>`;
     const tableHtml = `<table class="table">${thead}${tbody}${tfoot}</table>`;
     el("in-shifts").innerHTML = tableHtml;
 
@@ -690,7 +692,7 @@
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
-      if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
+      if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
       return null;
     };
@@ -717,20 +719,29 @@
       grand.GRG.in   += counts.GRG.in;   grand.GRG.out   += counts.GRG.out;
       grand.HTVN.in  += counts.HTVN.in;  grand.HTVN.out  += counts.HTVN.out;
 
-      const rowVendorCells = canonVendors.map(v => `${counts[v].out}/${counts[v].in}`);
+      const rowVendorCells = canonVendors.map(v => {
+        const c = counts[v] || { in: 0, out: 0 };
+        return `${c.out}/${c.in}`;
+      });
       const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in;
       const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out;
       totIn += inSum; totOut += outSum;
       rows.push([sh, ...rowVendorCells, `${outSum}/${inSum}`]);
     }
 
-    // Render grid table for Out: each cell is out/in
-    const hdr = ["Ca", ...canonVendors, "Total"]; // 6 columns
+  // Render grid table for Out: each cell is out/in
+  // Display label tweak: show 'GRGR' instead of 'GRG' without changing logic keys
+  const hdr = ["Ca", ...canonVendors.map(v => v === "GRG" ? "GRGR" : v), "Total"]; // 6 columns
     const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join("")}</tr></thead>`;
-    const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    const fmtPair = (a,b) => ((a===0 && b===0) ? "-" : `${a}/${b}`);
+    const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> {
+      if(i===0) return `<td>${c}</td>`;
+      const parts = String(c).split('/').map(x=>Number(x)||0);
+      return `<td style=\"text-align:center\">${fmtPair(parts[0], parts[1])}</td>`;
+    }).join("")}</tr>`).join("")}</tbody>`;
     const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in;
     const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out;
-    const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${grand.Agari.out}/${grand.Agari.in}</th><th style=\"text-align:center\">${grand.MBB.out}/${grand.MBB.in}</th><th style=\"text-align:center\">${grand.GRG.out}/${grand.GRG.in}</th><th style=\"text-align:center\">${grand.HTVN.out}/${grand.HTVN.in}</th><th style=\"text-align:center\">${gOut}/${gIn}</th></tr></tfoot>`;
+  const tfoot = `<tfoot><tr><th>Grand Total</th><th style=\"text-align:center\">${fmtPair(grand.Agari?.out||0,grand.Agari?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.MBB?.out||0,grand.MBB?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.GRG?.out||0,grand.GRG?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.HTVN?.out||0,grand.HTVN?.in||0)}</th><th style=\"text-align:center\">${fmtPair(gOut,gIn)}</th></tr></tfoot>`;
     const tableHtml = `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
     el("out-shifts").innerHTML = tableHtml;
     el("out-total").textContent = `Total Scan Out: ${totOut} / ${totIn}`;
@@ -765,14 +776,12 @@
 
   function renderDashboardList(raw){
     const flat=flattenRecords(raw);
-    flat.sort((b,a)=>{
-      const ao=a.gsheet_time_in||"", bo=b.gsheet_time_in||"";
-      if(ao && bo) return bo.localeCompare(ao);
-      if(ao && !bo) return -1;
-      if(!ao && bo) return 1;
-      const ai=a.gsheet_time_in||"", bi=b.gsheet_time_in||"";
-      return bi.localeCompare(ai);
-    });
+    // Always sort by gsheet_time_in (newest first), robust to empty/invalid strings
+    const num = (s)=>{
+      const t = Date.parse(s || "");
+      return Number.isFinite(t) ? t : 0;
+    };
+    flat.sort((b,a)=> num(b.gsheet_time_in) - num(a.gsheet_time_in));
     DASH.rows = flat.map(normalizeDashRow);
     DASH.page = 1;
     applyDashFiltersAndRender();
@@ -824,7 +833,7 @@
       body.appendChild(tr);
     }
 
-    const info=el("dash-info"); if(info) info.textContent=`Trang ${DASH.page} / ${maxPage} — ${total} kết quả`;
+    const info=el("dash-info"); if(info) info.textContent=`Trang ${DASH.page} / ${maxPage} — ${total} dòng`;
     const jump=el("dash-jump"); if(jump) jump.value=DASH.page;
     const prev=el("dash-prev"), next=el("dash-next");
     if(total<=ps){
@@ -857,7 +866,7 @@
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
-      if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
+      if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
       return null;
     };
@@ -896,13 +905,19 @@
         rows.push([sh, ...canonVendors.map(v => `${counts[v].a}/${counts[v].b}/${counts[v].in}`), `${sumA}/${sumB}/${sumIn}`]);
       }
 
-      const hdr = ["Ca", ...canonVendors, "Total"];
+  // Display label tweak: show 'GRGR' instead of 'GRG' without changing logic keys
+  const hdr = ["Ca", ...canonVendors.map(v => v === "GRG" ? "GRGR" : v), "Total"];
       const thead = `<thead><tr>${hdr.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
-      const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===0?`<td>${c}</td>`:`<td style=\"text-align:center\">${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      const fmtTriple = (a,b,iN) => ((a===0 && b===0 && iN===0) ? '-' : `${a}/${b}/${iN}`);
+      const tbody = `<tbody>${rows.map(r=>`<tr>${r.map((c,i)=> {
+        if(i===0) return `<td>${c}</td>`;
+        const parts = String(c).split('/').map(x=>Number(x)||0);
+        return `<td style=\"text-align:center\">${fmtTriple(parts[0], parts[1], parts[2]||0)}</td>`;
+      }).join('')}</tr>`).join('')}</tbody>`;
       const gA  = canonVendors.reduce((t,v)=> t + grand[v].a , 0);
       const gB  = canonVendors.reduce((t,v)=> t + grand[v].b , 0);
       const gIn = canonVendors.reduce((t,v)=> t + grand[v].in, 0);
-      const tfoot = `<tfoot><tr><th>Grand Total</th>${canonVendors.map(v=>`<th style=\"text-align:center\">${grand[v].a}/${grand[v].b}/${grand[v].in}</th>`).join('')}<th style=\"text-align:center\">${gA}/${gB}/${gIn}</th></tr></tfoot>`;
+      const tfoot = `<tfoot><tr><th>Grand Total</th>${canonVendors.map(v=>`<th style=\"text-align:center\">${fmtTriple(grand[v].a,grand[v].b,grand[v].in)}</th>`).join('')}<th style=\"text-align:center\">${fmtTriple(gA,gB,gIn)}</th></tr></tfoot>`;
       return `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
     }
 
