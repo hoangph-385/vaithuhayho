@@ -824,7 +824,7 @@
       body.appendChild(tr);
     }
 
-    const info=el("dash-info"); if(info) info.textContent=`Trang ${DASH.page} / ${maxPage} — ${total} dòng`;
+    const info=el("dash-info"); if(info) info.textContent=`Trang ${DASH.page} / ${maxPage} — ${total} kết quả`;
     const jump=el("dash-jump"); if(jump) jump.value=DASH.page;
     const prev=el("dash-prev"), next=el("dash-next");
     if(total<=ps){
