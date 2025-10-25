@@ -647,7 +647,7 @@ table td {
 
 /* ========== Responsive Design ========== */
 @media (min-width: 1201px) {
-  #tablesWrap { grid-template-columns: 4fr 6fr; }
+  #tablesWrap { grid-template-columns: 4.8fr 5.2fr; }
 }
 
 @media (max-width: 900px) {
@@ -984,7 +984,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   padding: 4px 6px;
   border: 1px solid var(--border-color);
   max-width: 150px;
-  font-size: 15px; /* increased by ~2px */
+  font-size: 14px; /* increased by ~2px */
   line-height: 1.3;
   vertical-align: middle;
   text-align: center;
@@ -1004,7 +1004,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   table-layout: auto;
   width: 100%;
   word-break: break-word;
-  font-size: 15px; /* increased by ~2px */
+  font-size: 14px; /* increased by ~2px */
 }
 
 /* Column widths cho dashboard */
@@ -1030,7 +1030,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tbl-dashboard td:nth-child(7) { width: 140px; min-width: 140px; }
 
 #tbl-dashboard th:nth-child(8),  /* Giới tính */
-#tbl-dashboard td:nth-child(8) { width: 60px; min-width: 60px; }
+#tbl-dashboard td:nth-child(8) { width: 80px; min-width: 80px; }
 
 #tbl-dashboard th:nth-child(9),  /* Năm sinh */
 #tbl-dashboard td:nth-child(9) { width: 60px; min-width: 60px; }
@@ -1039,8 +1039,8 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tbl-dashboard td:nth-child(10) { width: 100px; min-width: 100px; }
 
 /* utility column classes for dashboard */
-.tbl-col-fullname{ width:320px; min-width:180px; max-width:520px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tbl-col-gender{ width:60px; min-width:60px; text-align:center; white-space:nowrap; }
+.tbl-col-fullname{ width:280px; min-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tbl-col-gender{ width:130px; min-width:80px; text-align:center; white-space:nowrap; }
 
 
 #tbl-dashboard th:nth-child(11), /* Nghỉ Trưa */
