@@ -771,6 +771,375 @@ table td {
   }
 }
 
+/* ===== SDD Tool Styles ===== */
+.sdd-page .warehouse-section {
+  margin-bottom: 30px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+  padding: 20px;
+}
+
+.sdd-page .warehouse-title {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #343a40;
+  text-align: center;
+  padding: 10px;
+  background: #e9ecef;
+  border-radius: 5px;
+}
+
+.sdd-page .warehouse-badge {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  margin-left: 8px;
+}
+
+.sdd-page .warehouse-section .province-grid {
+  background: white;
+  border-radius: 5px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sdd-page .stats-container {
+  display: flex;
+  gap: 20px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.sdd-page .stat-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 200px;
+  text-align: center;
+}
+
+.sdd-page .stat-card.vndb {
+  border-left: 4px solid #c52b09;
+}
+
+.sdd-page .stat-card.vndl {
+  border-left: 4px solid #28a745;
+}
+
+.sdd-page .stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #495057;
+  margin: 10px 0;
+}
+
+.sdd-page .stat-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.sdd-page .province-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.sdd-page .province-section {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sdd-page .province-section h3 {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #007bff;
+}
+
+.sdd-page .order-list {
+  flex: 1;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.sdd-page .order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 5px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.sdd-page .order-item:hover {
+  background: #e9ecef;
+}
+
+.sdd-page .order-number {
+  font-weight: 600;
+  color: #007bff;
+  font-family: monospace;
+}
+
+.sdd-page .order-warehouse {
+  background: #6c757d;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.sdd-page .order-state {
+  font-size: 0.9rem;
+  color: #6c757d;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sdd-page .no-orders {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px 20px;
+}
+
+.sdd-page .count-badge {
+  background: #007bff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+
+.sdd-page .btn-copy {
+  padding: 10px 15px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.sdd-page .btn-copy:hover {
+  background: #218838;
+}
+
+.sdd-page .btn-copy:active {
+  transform: translateY(1px);
+}
+
+.sdd-page .copy-all-section {
+  text-align: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #dee2e6;
+}
+
+.sdd-page .btn-copy-all {
+  padding: 8px 16px;
+  background: #ffffff;
+  color: #000;
+  border: 2px solid #cc8400;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.sdd-page .btn-copy-all:hover {
+  background: #ed916c;
+  transform: translateY(-1px);
+}
+
+.sdd-page .btn-copy-all:active {
+  transform: translateY(1px);
+}
+
+.sdd-page .loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.sdd-page .form-control {
+  height: 36px;
+  padding: 0 12px;
+  line-height: 36px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  margin-right: 10px;
+  box-sizing: border-box;
+}
+
+.sdd-page .btn-action {
+  height: 36px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+  .sdd-page .province-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .sdd-page .stats-container {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .sdd-page .order-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .sdd-page .order-warehouse,
+  .sdd-page .order-state {
+    max-width: none;
+  }
+}
+
+.sdd-page .warehouse-table-container {
+  margin: 20px 0;
+  overflow-x: auto;
+}
+
+.sdd-page .warehouse-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sdd-page .warehouse-header {
+  background: #f8f9fa;
+  font-size: 1.2em;
+  font-weight: bold;
+  text-align: center;
+  padding: 15px;
+  border: 2px solid #dee2e6;
+  position: relative;
+}
+
+.sdd-page .vndb-header {
+  background: linear-gradient(135deg, #c52b09, #961d01);
+  color: white;
+}
+
+.sdd-page .vndl-header {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+  color: white;
+}
+
+.sdd-page .global-copy-header {
+  background: #ffffff;
+  text-align: center;
+  padding: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.sdd-page .warehouse-copy-header {
+  background: #f1f3f5;
+  text-align: center;
+  padding: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.sdd-page .province-header {
+  background: #e9ecef;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #dee2e6;
+  vertical-align: top;
+  min-width: 150px;
+}
+
+.sdd-page .warehouse-breakdown {
+  margin-top: 6px;
+  font-weight: normal;
+  font-size: 0.9em;
+}
+
+.sdd-page .btn-copy-top {
+  background: #ffffff;
+  color: #000;
+  border: 2px solid #1052ec;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  cursor: pointer;
+  margin-bottom: 5px;
+  display: block;
+  width: 100%;
+}
+
+.sdd-page .btn-copy-top:hover {
+  background: #959ee4;
+}
+
+.sdd-page .order-cell {
+  border: 1px solid #dee2e6;
+  padding: 15px;
+  vertical-align: top;
+  height: 400px;
+  overflow-y: auto;
+}
+
+.sdd-page .copy-all-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 360px) {
   #tblScan th,
   #tblScan td,

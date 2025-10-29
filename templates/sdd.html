@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% block title %}SDD Tool - Báo cáo DNG-35/36/37{% endblock %}
+{% block content %}
+
+<script>
+  window.API_BASE = window.API_BASE || "";
+</script>
+
+<div class="sdd-page">
+<!-- ===== Notice ===== -->
+<div id="notice" class="notice"></div>
+
+<!-- ===== Controls ===== -->
+<div id="controls">
+  <div class="row">
+    <label>Chọn COT cần lấy dữ liệu:</label>
+    <select id="timeRange" class="form-control">
+      <option value="COT_0">COT_0</option>
+      <option value="COT_1">COT_1</option>
+      <option value="COT_2">COT_2</option>
+      <option value="custom">Tùy chỉnh</option>
+    </select>
+  </div>
+
+  <div id="customTimeSection" class="row" style="display: none;">
+    <div>
+      <label>Từ:</label>
+      <input id="timeFrom" type="datetime-local" class="form-control">
+    </div>
+    <div>
+      <label>Đến:</label>
+      <input id="timeTo" type="datetime-local" class="form-control">
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="btnFetchData" class="btn-action">Lấy Dữ Liệu</button>
+  </div>
+
+  <div id="loadingStatus" class="row" style="display: none;">
+    <div class="loading-spinner"></div>
+    <span id="loadingText">Đang tải dữ liệu...</span>
+  </div>
+</div>
+
+<!-- Summary moved: now inside warehouse-table-container -->
+
+<!-- ===== Data Tables by Warehouse and Province ===== -->
+<div id="tablesSection" style="display: none;">
+
+  <!-- Single Table with Warehouse Columns (no wrapper, summary removed) -->
+    <table class="warehouse-table">
+      <thead>
+        <tr>
+          <th colspan="3" class="warehouse-header vndb-header">
+            VNDB <span id="vndbTotalCount" class="warehouse-badge">0</span>
+            <div class="warehouse-breakdown">
+              Normal: <span id="vndbNormal">0</span> ·
+              OOS_Picking: <span id="vndbOosPicking">0</span> ·
+              OOS_WHS: <span id="vndbOosWhs">0</span>
+            </div>
+          </th>
+          <th colspan="3" class="warehouse-header vndl-header">
+            VNDL <span id="vndlTotalCount" class="warehouse-badge">0</span>
+            <div class="warehouse-breakdown">
+              Normal: <span id="vndlNormal">0</span> ·
+              OOS_Picking: <span id="vndlOosPicking">0</span> ·
+              OOS_WHS: <span id="vndlOosWhs">0</span>
+            </div>
+          </th>
+        </tr>
+        <tr>
+          <th colspan="3" class="warehouse-copy-header">
+            <button id="btnCopyVndbAll" class="btn-copy-all">Copy All VNDB</button>
+          </th>
+          <th colspan="3" class="warehouse-copy-header">
+            <button id="btnCopyVndlAll" class="btn-copy-all">Copy All VNDL</button>
+          </th>
+        </tr>
+        <tr>
+          <!-- VNDB Province Headers with Copy Buttons -->
+          <th class="province-header">
+            <button id="btnCopyVndbDanang" class="btn-copy-top">Copy</button>
+            <div>Đà Nẵng (36)</div>
+            <span id="vndbDanangCount" class="count-badge">0</span>
+          </th>
+          <th class="province-header">
+            <button id="btnCopyVndbHue" class="btn-copy-top">Copy</button>
+            <div>Huế (35)</div>
+            <span id="vndbHueCount" class="count-badge">0</span>
+          </th>
+          <th class="province-header">
+            <button id="btnCopyVndbQuangnam" class="btn-copy-top">Copy</button>
+            <div>Quảng Nam (37)</div>
+            <span id="vndbQuangnamCount" class="count-badge">0</span>
+          </th>
+          <!-- VNDL Province Headers with Copy Buttons -->
+          <th class="province-header">
+            <button id="btnCopyVndlDanang" class="btn-copy-top">Copy</button>
+            <div>Đà Nẵng (36)</div>
+            <span id="vndlDanangCount" class="count-badge">0</span>
+          </th>
+          <th class="province-header">
+            <button id="btnCopyVndlHue" class="btn-copy-top">Copy</button>
+            <div>Huế (35)</div>
+            <span id="vndlHueCount" class="count-badge">0</span>
+          </th>
+          <th class="province-header">
+            <button id="btnCopyVndlQuangnam" class="btn-copy-top">Copy</button>
+            <div>Quảng Nam (37)</div>
+            <span id="vndlQuangnamCount" class="count-badge">0</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <!-- VNDB Order Lists -->
+          <td class="order-cell">
+            <div class="order-list" id="vndbDanangOrders">
+              <!-- Orders will be populated here -->
+          <td class="order-cell">
+            <div class="order-list" id="vndbHueOrders">
+              <!-- Orders will be populated here -->
+            </div>
+          </td>
+          <td class="order-cell">
+            <div class="order-list" id="vndbQuangnamOrders">
+              <!-- Orders will be populated here -->
+            </div>
+          </td>
+          <!-- VNDL Order Lists -->
+          <td class="order-cell">
+            <div class="order-list" id="vndlDanangOrders">
+              <!-- Orders will be populated here -->
+            </div>
+          </td>
+          <td class="order-cell">
+            <div class="order-list" id="vndlHueOrders">
+              <!-- Orders will be populated here -->
+            </div>
+          </td>
+          <td class="order-cell">
+            <div class="order-list" id="vndlQuangnamOrders">
+              <!-- Orders will be populated here -->
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const LANE_CODE = "L-VN11";
+
+// Global state
+let sddData = {
+  vndb: {
+    danang: [],
+    hue: [],
+    quangnam: []
+  },
+  vndl: {
+    danang: [],
+    hue: [],
+    quangnam: []
+  },
+  stats: { vndb: {}, vndl: {} }
+};
+
+// Utility functions
+function el(id) { return document.getElementById(id); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+function notice(msg, type = "info", duration = 3000) {
+  const n = el("notice");
+  n.textContent = msg;
+  n.className = `notice ${type}`;
+  n.style.display = "block";
+  setTimeout(() => { n.style.display = "none"; }, duration);
+}
+
+// Province classification helpers
+function isProvince(buyerState, province) {
+  const normalized = buyerState.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+
+  switch (province) {
+    case 'danang':
+      return normalized.includes('da nang') || normalized.includes('danang');
+    case 'hue':
+      return normalized.includes('hue') || normalized.includes('thua thien hue');
+    case 'quangnam':
+      return normalized.includes('quang nam');
+    default:
+      return false;
+  }
+}
+
+// Time range helpers
+function calcTimeRange() {
+  const range = el("timeRange").value;
+  const now = new Date();
+  let timeFrom, timeTo;
+
+  switch (range) {
+    case "COT_0":
+      timeTo = new Date(now);
+      timeTo.setHours(8, 30, 0, 0);
+      timeFrom = new Date(timeTo);
+      timeFrom.setDate(timeFrom.getDate() - 3);
+      timeFrom.setHours(0, 0, 0, 0);
+      break;
+    case "COT_1":
+      timeTo = new Date(now);
+      timeTo.setHours(14, 0, 0, 0);
+      timeFrom = new Date(timeTo);
+      timeFrom.setDate(timeFrom.getDate() - 3);
+      timeFrom.setHours(0, 0, 0, 0);
+      break;
+    case "COT_2":
+      timeTo = new Date(now);
+      timeTo.setHours(18, 0, 0, 0);
+      timeFrom = new Date(timeTo);
+      timeFrom.setDate(timeFrom.getDate() - 3);
+      timeFrom.setHours(0, 0, 0, 0);
+      break;
+    case "custom":
+      timeFrom = new Date(el("timeFrom").value);
+      timeTo = new Date(el("timeTo").value);
+      break;
+  }
+
+  return {
+    time_from: Math.floor(timeFrom.getTime() / 1000),
+    time_to: Math.floor(timeTo.getTime() / 1000),
+    from_str: timeFrom.toLocaleString('vi-VN'),
+    to_str: timeTo.toLocaleString('vi-VN')
+  };
+}
+
+// API calls
+async function fetchSddData() {
+  const timeRange = calcTimeRange();
+  const laneFilter = LANE_CODE;
+
+  el("loadingStatus").style.display = "block";
+  el("loadingText").textContent = `Đang lấy dữ liệu từ ${timeRange.from_str} đến ${timeRange.to_str}...`;
+
+  try {
+    const payload = {
+      time_from: timeRange.time_from,
+      time_to: timeRange.time_to,
+      lane_filter: laneFilter
+    };
+
+    const response = await fetch('/api/report/sdd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    // Separate orders by warehouse and classify by province
+    const vndbOrders = data.vndb_orders || [];
+    const vndlOrders = data.vndl_orders || [];
+
+    // Classify VNDB orders by province
+    sddData.vndb.danang = vndbOrders.filter(order => isProvince(order.buyer_state, 'danang'));
+    sddData.vndb.hue = vndbOrders.filter(order => isProvince(order.buyer_state, 'hue'));
+    sddData.vndb.quangnam = vndbOrders.filter(order => isProvince(order.buyer_state, 'quangnam'));
+
+    // Classify VNDL orders by province
+    sddData.vndl.danang = vndlOrders.filter(order => isProvince(order.buyer_state, 'danang'));
+    sddData.vndl.hue = vndlOrders.filter(order => isProvince(order.buyer_state, 'hue'));
+    sddData.vndl.quangnam = vndlOrders.filter(order => isProvince(order.buyer_state, 'quangnam'));
+
+    sddData.stats = data.stats || { vndb: {}, vndl: {} };    // Update UI
+    updateSummaryStats();
+    renderProvinceTables();
+
+  // Show sections
+  const summaryEl = el("summarySection");
+  if (summaryEl) summaryEl.style.display = "block";
+  el("tablesSection").style.display = "block";
+
+    const vndbTotal = sddData.vndb.danang.length + sddData.vndb.hue.length + sddData.vndb.quangnam.length;
+    const vndlTotal = sddData.vndl.danang.length + sddData.vndl.hue.length + sddData.vndl.quangnam.length;
+    const totalOrders = vndbTotal + vndlTotal;
+
+    notice(`Đã tải thành công ${totalOrders} đơn hàng (VNDB: ${vndbTotal}, VNDL: ${vndlTotal})`, "success");
+
+  } catch (error) {
+    console.error("Fetch error:", error);
+    notice(`Lỗi: ${error.message}`, "error", 5000);
+  } finally {
+    el("loadingStatus").style.display = "none";
+  }
+}
+
+// UI Updates
+function updateSummaryStats() {
+  const vndbStats = sddData.stats.vndb || {};
+  const vndlStats = sddData.stats.vndl || {};
+
+  const vndbTotal = sddData.vndb.danang.length + sddData.vndb.hue.length + sddData.vndb.quangnam.length;
+  const vndlTotal = sddData.vndl.danang.length + sddData.vndl.hue.length + sddData.vndl.quangnam.length;
+  const totalOrders = vndbTotal + vndlTotal;
+
+  const totalOrdersEl = el("totalOrders");
+  if (totalOrdersEl) totalOrdersEl.textContent = totalOrders;
+
+  // Update VNDB stats
+  const vndbTotalEl = el("vndbTotal");
+  if (vndbTotalEl) vndbTotalEl.textContent = vndbTotal;
+  el("vndbNormal").textContent = vndbStats.normal || 0;
+  el("vndbOosPicking").textContent = vndbStats.oos_picking || 0;
+  el("vndbOosWhs").textContent = vndbStats.oos_whs || 0;
+
+  // Update VNDL stats
+  const vndlTotalEl = el("vndlTotal");
+  if (vndlTotalEl) vndlTotalEl.textContent = vndlTotal;
+  el("vndlNormal").textContent = vndlStats.normal || 0;
+  el("vndlOosPicking").textContent = vndlStats.oos_picking || 0;
+  el("vndlOosWhs").textContent = vndlStats.oos_whs || 0;
+}
+
+function renderProvinceTables() {
+  // Render VNDB sections
+  renderProvinceOrders('vndb', 'danang', sddData.vndb.danang);
+  renderProvinceOrders('vndb', 'hue', sddData.vndb.hue);
+  renderProvinceOrders('vndb', 'quangnam', sddData.vndb.quangnam);
+
+  // Render VNDL sections
+  renderProvinceOrders('vndl', 'danang', sddData.vndl.danang);
+  renderProvinceOrders('vndl', 'hue', sddData.vndl.hue);
+  renderProvinceOrders('vndl', 'quangnam', sddData.vndl.quangnam);
+
+  // Update warehouse totals
+  updateWarehouseTotals();
+}
+
+function renderProvinceOrders(warehouse, province, orders) {
+  const container = el(`${warehouse}${province.charAt(0).toUpperCase() + province.slice(1)}Orders`);
+  const countBadge = el(`${warehouse}${province.charAt(0).toUpperCase() + province.slice(1)}Count`);
+
+  countBadge.textContent = orders.length;
+
+  if (orders.length === 0) {
+    container.innerHTML = '<div class="no-orders">Không có đơn hàng</div>';
+    return;
+  }
+
+  const orderItems = orders.map((order, idx) => `
+    <div class="order-item">
+      <span class="order-number">${order.wms_order_no}</span>
+      <span class="order-state">${order.buyer_state}</span>
+    </div>
+  `).join('');
+
+  container.innerHTML = orderItems;
+}
+
+function updateWarehouseTotals() {
+  const vndbTotal = sddData.vndb.danang.length + sddData.vndb.hue.length + sddData.vndb.quangnam.length;
+  const vndlTotal = sddData.vndl.danang.length + sddData.vndl.hue.length + sddData.vndl.quangnam.length;
+
+  el("vndbTotalCount").textContent = vndbTotal;
+  el("vndlTotalCount").textContent = vndlTotal;
+}// Copy functions
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    notice("Đã copy vào clipboard!", "success", 2000);
+  }).catch(() => {
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    notice("Đã copy vào clipboard!", "success", 2000);
+  });
+}
+
+function copyWarehouseProvince(warehouse, province) {
+  const orders = sddData[warehouse][province];
+  if (orders.length === 0) {
+    notice("Không có đơn hàng để copy", "warning");
+    return;
+  }
+
+  const orderNumbers = orders.map(order => order.wms_order_no).join('\n');
+  copyToClipboard(orderNumbers);
+}
+
+function copyWarehouseAll(warehouse) {
+  const allOrders = [...sddData[warehouse].danang, ...sddData[warehouse].hue, ...sddData[warehouse].quangnam];
+  if (allOrders.length === 0) {
+    notice("Không có đơn hàng để copy", "warning");
+    return;
+  }
+
+  const orderNumbers = allOrders.map(order => order.wms_order_no).join('\n');
+  copyToClipboard(orderNumbers);
+}
+
+function copyAll() {
+  const vndbOrders = [...sddData.vndb.danang, ...sddData.vndb.hue, ...sddData.vndb.quangnam];
+  const vndlOrders = [...sddData.vndl.danang, ...sddData.vndl.hue, ...sddData.vndl.quangnam];
+  const allOrders = [...vndbOrders, ...vndlOrders];
+
+  if (allOrders.length === 0) {
+    notice("Không có đơn hàng để copy", "warning");
+    return;
+  }
+
+  const orderNumbers = allOrders.map(order => order.wms_order_no).join('\n');
+  copyToClipboard(orderNumbers);
+}// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Time range selector
+  el("timeRange").addEventListener('change', function() {
+    el("customTimeSection").style.display =
+      this.value === 'custom' ? 'block' : 'none';
+  });
+
+  // Main actions
+  el("btnFetchData").addEventListener('click', fetchSddData);
+
+  // Copy buttons
+  // VNDB copy buttons
+  el("btnCopyVndbDanang").addEventListener('click', () => copyWarehouseProvince('vndb', 'danang'));
+  el("btnCopyVndbHue").addEventListener('click', () => copyWarehouseProvince('vndb', 'hue'));
+  el("btnCopyVndbQuangnam").addEventListener('click', () => copyWarehouseProvince('vndb', 'quangnam'));
+  el("btnCopyVndbAll").addEventListener('click', () => copyWarehouseAll('vndb'));
+
+  // VNDL copy buttons
+  el("btnCopyVndlDanang").addEventListener('click', () => copyWarehouseProvince('vndl', 'danang'));
+  el("btnCopyVndlHue").addEventListener('click', () => copyWarehouseProvince('vndl', 'hue'));
+  el("btnCopyVndlQuangnam").addEventListener('click', () => copyWarehouseProvince('vndl', 'quangnam'));
+  el("btnCopyVndlAll").addEventListener('click', () => copyWarehouseAll('vndl'));
+
+  // Global copy button (optional)
+  const btnAll = el("btnCopyAll");
+  if (btnAll) btnAll.addEventListener('click', copyAll);
+
+  // Initialize default time inputs for custom range
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  el("timeFrom").value = yesterday.toISOString().slice(0, 16);
+  el("timeTo").value = now.toISOString().slice(0, 16);
+});
+</script>
+{% endblock %}

@@ -14,6 +14,7 @@ from waitress import serve
 from utils.firebase_config import ensure_firebase
 from routes.wms import bp as wms_bp
 from routes.report import bp as report_bp
+from routes.sdd import bp as sdd_bp
 
 # ───── Setup Flask ─────
 app = Flask(__name__, static_folder="static")
@@ -27,9 +28,10 @@ app.logger.addHandler(_handler)
 # Register Blueprints
 app.register_blueprint(wms_bp, url_prefix='/wms')
 app.register_blueprint(report_bp, url_prefix='/api/report')
+app.register_blueprint(sdd_bp, url_prefix='/api/report')
 
 # ───── Constants ─────
-PUBLIC_PATHS = {"/", "/scan", "/handover"}
+PUBLIC_PATHS = {"/", "/scan", "/handover", "/sdd"}
 
 # (Removed) Background Task handler and threads
 
@@ -48,6 +50,11 @@ def scan():
 def handover():
     """Handover Tool page"""
     return render_template("handover.html")
+
+@app.route("/sdd")
+def sdd():
+    """SDD Tool page"""
+    return render_template("sdd.html")
 
 # ───── Server ─────
 def run_flask():
