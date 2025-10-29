@@ -21,8 +21,9 @@ from flask import Blueprint, request, jsonify, Response
 # Import utility functions
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+UTILITY_ROOT = os.path.dirname(PROJECT_ROOT)  # Go up one more level to find utility.py
+if UTILITY_ROOT not in sys.path:
+    sys.path.insert(0, UTILITY_ROOT)
 
 try:
     from utility import (

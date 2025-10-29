@@ -18,12 +18,11 @@ from routes.sdd import bp as sdd_bp
 
 # ───── Setup Flask ─────
 app = Flask(__name__, static_folder="static")
-app.logger.setLevel(logging.DEBUG)
 
-_handler = logging.StreamHandler()
-_handler.setLevel(logging.DEBUG)
-_handler.setFormatter(logging.Formatter("\n[%(levelname)s]: %(asctime)s\n%(message)s"))
-app.logger.addHandler(_handler)
+# Tắt Werkzeug logging để tránh trùng lặp
+import logging
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.setLevel(logging.WARNING)  # Chỉ show WARNING trở lên
 
 # Register Blueprints
 app.register_blueprint(wms_bp, url_prefix='/wms')
@@ -33,7 +32,58 @@ app.register_blueprint(sdd_bp, url_prefix='/api/report')
 # ───── Constants ─────
 PUBLIC_PATHS = {"/", "/scan", "/handover", "/sdd"}
 
-# (Removed) Background Task handler and threads
+# ───── Setup Flask & Logging ─────
+import logging, logging.config
+from logging.handlers import RotatingFileHandler
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_DIR = os.getenv("LOG_DIR", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logging.config.dictConfig({
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "compact": {"format": "%(asctime)s [%(levelname)s] %(message)s", "datefmt": "%H:%M:%S"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": LOG_LEVEL,
+            "formatter": "compact",
+            "stream": "ext://sys.stdout",
+        },
+        "rotating_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": LOG_LEVEL,
+            "formatter": "compact",
+            "filename": os.path.join(LOG_DIR, "app.log"),
+            "maxBytes": 5 * 1024 * 1024,  # 5MB
+            "backupCount": 3,
+            "encoding": "utf-8",
+        },
+    },
+    "root": {
+        "level": LOG_LEVEL,
+        "handlers": ["console", "rotating_file"],
+    },
+})
+
+# Bật log cho Flask & Waitress
+app.logger.propagate = True                      # đẩy log của app lên root
+logging.getLogger("waitress").setLevel(LOG_LEVEL)
+
+# (Tuỳ chọn) log mỗi request đơn giản
+@app.after_request
+def _log_response(response):
+    # Log với status code
+    method = request.method
+    path = request.path
+    status = response.status_code
+
+    app.logger.info("%s %s - %d", method, path, status)
+    sys.stdout.flush()
+    return response
 
 # ───── Routes ─────
 @app.route("/")
@@ -44,17 +94,17 @@ def home():
 @app.route("/scan")
 def scan():
     """Scan Tool page"""
-    return render_template("scan.html")
+    return render_template("tool_scan.html")
 
 @app.route("/handover")
 def handover():
     """Handover Tool page"""
-    return render_template("handover.html")
+    return render_template("tool_handover.html")
 
 @app.route("/sdd")
 def sdd():
     """SDD Tool page"""
-    return render_template("sdd.html")
+    return render_template("tool_sdd.html")
 
 # ───── Server ─────
 def run_flask():
