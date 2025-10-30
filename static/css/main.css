@@ -895,9 +895,9 @@ table td {
 }
 
 .sdd-page .order-number {
-  font-weight: 600;
-  color: #007bff;
-  font-family: monospace;
+  font-weight: normal;
+  color: #333;
+  font-family: Arial, sans-serif;
 }
 
 .sdd-page .order-warehouse {
@@ -964,7 +964,7 @@ table td {
   padding: 8px 16px;
   background: #ffffff;
   color: #000;
-  border: 2px solid #cc8400;
+  border: 1px solid #cc8400;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
@@ -1110,7 +1110,7 @@ table td {
 .sdd-page .btn-copy-top {
   background: #ffffff;
   color: #000;
-  border: 2px solid #1052ec;
+  border: 1px solid #1052ec;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.8em;
