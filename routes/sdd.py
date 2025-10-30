@@ -229,6 +229,9 @@ def _create_and_fetch_excel(headers: dict, time_from: int, time_to: int, wh: str
                 last_perc = perc
             dl = found.get("download_link")
             if perc >= 100 and dl:
+                # CRITICAL: Wait for file to be fully written after 100%
+                print(f"[{wh}] ✅ Task complete, waiting for file stabilization...")
+                time.sleep(3)  # Give server time to finalize the file
                 download_link = dl
                 break
 
@@ -237,7 +240,10 @@ def _create_and_fetch_excel(headers: dict, time_from: int, time_to: int, wh: str
     if not download_link:
         raise TimeoutError("Report not ready within timeout")
 
+    print(f"[{wh}] 📥 Downloading Excel file...")
     file_bytes = _download_with_retry(download_link, headers=headers, timeout=DL_TIMEOUT, retries=3)
+
+    print(f"[{wh}] 📊 Reading Excel data...")
     return pd.read_excel(io.BytesIO(file_bytes), dtype=str, engine="openpyxl")
 
 def _filter_and_process_orders(df: pd.DataFrame, wh: str, lane_filter: str = "L-VN11") -> List[dict]:
@@ -245,7 +251,8 @@ def _filter_and_process_orders(df: pd.DataFrame, wh: str, lane_filter: str = "L-
     need_cols = ["Buyer State", "Lane Code", "WMS Order No"]
     missing = [c for c in need_cols if c not in df.columns]
     if missing:
-        raise KeyError(f"Missing required columns: {missing}")
+        available = list(df.columns)[:10]  # Show first 10 columns for debugging
+        raise KeyError(f"Missing required columns: {missing}. Available columns: {available}")
 
     buyer_state = _norm_text(df["Buyer State"])
     lane_code = _norm_text(df["Lane Code"]).str.upper()

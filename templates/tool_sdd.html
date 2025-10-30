@@ -170,7 +170,7 @@ let sddData = {
 function el(id) { return document.getElementById(id); }
 function $$(sel) { return document.querySelectorAll(sel); }
 
-function notice(msg, type = "info", duration = 12000) {
+function notice(msg, type = "info", duration = 0) {
   const n = el("notice");
 
   // Check if message contains newlines and format accordingly
@@ -181,9 +181,14 @@ function notice(msg, type = "info", duration = 12000) {
     n.textContent = msg;
   }
 
-  n.className = `notice ${type}`;
+  n.className = "notice";
+  n.setAttribute("data-kind", type);
   n.style.display = "block";
-  setTimeout(() => { n.style.display = "none"; }, duration);
+
+  // Only hide after duration if duration > 0
+  if (duration > 0) {
+    setTimeout(() => { n.style.display = "none"; }, duration);
+  }
 }
 
 function playSound(type) {
@@ -272,10 +277,10 @@ async function fetchSddData() {
   const laneFilter = LANE_CODE;
 
   // Show loading message on notice
-  notice("Đang tải dữ liệu...", "info", 60000); // Long duration since it will be replaced when done
+  notice("Đang tải dữ liệu...", "info"); // No duration - stays visible
 
   // Show notice for data fetching
-  notice(`Đang lấy dữ liệu từ ${timeRange.from_str} đến ${timeRange.to_str}...`, "info", 60000);
+  notice(`Đang lấy dữ liệu từ ${timeRange.from_str} đến ${timeRange.to_str}...`, "info");
 
   try {
     const payload = {
@@ -329,67 +334,46 @@ async function fetchSddData() {
     sddData.vndl.hue = vndlOrders.filter(order => isProvince(order.buyer_state, 'hue'));
     sddData.vndl.quangnam = vndlOrders.filter(order => isProvince(order.buyer_state, 'quangnam'));
 
-    sddData.stats = data.stats || { vndb: {}, vndl: {} };    // Update UI
+    sddData.stats = data.stats || { vndb: {}, vndl: {} };
+
+    // Update UI
     updateSummaryStats();
     renderProvinceTables();
 
-  // Show sections
-  const summaryEl = el("summarySection");
-  if (summaryEl) summaryEl.style.display = "block";
-  el("tablesSection").style.display = "block";
+    // Show sections
+    const summaryEl = el("summarySection");
+    if (summaryEl) summaryEl.style.display = "block";
+    el("tablesSection").style.display = "block";
 
     const vndbTotal = sddData.vndb.danang.length + sddData.vndb.hue.length + sddData.vndb.quangnam.length;
     const vndlTotal = sddData.vndl.danang.length + sddData.vndl.hue.length + sddData.vndl.quangnam.length;
     const totalOrders = vndbTotal + vndlTotal;
 
-    // Analyze retcode from errors to determine success/failure
+    // Check for warehouse errors
     const responseErrors = data.errors || {};
-    const warehouseResults = [];
+    const hasVndbError = responseErrors.VNDB ? true : false;
+    const hasVndlError = responseErrors.VNDL ? true : false;
 
-    // Check each warehouse error for retcode
-    for (const [warehouse, error] of Object.entries(responseErrors)) {
-      if (error) {
-        // Extract retcode from error message
-        const retcodeMatch = error.match(/'retcode':\s*(-?\d+)/);
-        const retcode = retcodeMatch ? parseInt(retcodeMatch[1]) : -1;
-        const messageMatch = error.match(/'message':\s*'([^']+)'/);
-        const message = messageMatch ? messageMatch[1] : error;
-
-        warehouseResults.push({
-          warehouse,
-          retcode,
-          message,
-          hasError: true
-        });
-      } else {
-        // No error means success (retcode = 0)
-        warehouseResults.push({
-          warehouse,
-          retcode: 0,
-          message: "Success",
-          hasError: false
-        });
-      }
-    }
-
-    // Determine overall result
-    const allSuccess = warehouseResults.every(result => result.retcode === 0);
-
-    if (allSuccess) {
-      // All warehouses successful
+    // Determine notification type and message
+    if (!hasVndbError && !hasVndlError) {
+      // Both warehouses successful
       playSound("success");
-      notice("OK", "success", 12000);
-    } else {
-      // Some warehouses failed
+      notice(`✅ Thành công! Tổng: ${totalOrders} đơn (VNDB: ${vndbTotal}, VNDL: ${vndlTotal})`, "success");
+    } else if (hasVndbError && hasVndlError) {
+      // Both warehouses failed
       playSound("error");
+      const errorMsg = `❌ CẢ 2 KHO BỊ LỖI:\n[VNDB] ${responseErrors.VNDB}\n[VNDL] ${responseErrors.VNDL}`;
+      notice(errorMsg, "error");
+    } else {
+      // One warehouse failed, one succeeded
+      playSound("error");
+      const successWh = hasVndbError ? 'VNDL' : 'VNDB';
+      const successCount = hasVndbError ? vndlTotal : vndbTotal;
+      const errorWh = hasVndbError ? 'VNDB' : 'VNDL';
+      const errorMsg = hasVndbError ? responseErrors.VNDB : responseErrors.VNDL;
 
-      // Show detailed error messages
-      const errorMessages = warehouseResults
-        .filter(result => result.retcode !== 0)
-        .map(result => `[${result.warehouse}] Retcode: ${result.retcode} | message: ${result.message}`)
-        .join('\n');
-
-      notice(`**ERROR**\n ${errorMessages}`, "error", 12000);
+      const noticeMsg = `⚠️ KHO ${errorWh} BỊ LỖI:\n${errorMsg}\n\n✅ Kho ${successWh} thành công: ${successCount} đơn (vẫn hiển thị dữ liệu)`;
+      notice(noticeMsg, "warning");
     }  } catch (error) {
     console.error("Fetch error:", error);
 
@@ -410,7 +394,7 @@ async function fetchSddData() {
       errorNotice = `Lỗi: ${error.message}`;
     }
 
-    notice(errorNotice, "error", 12000);
+    notice(errorNotice, "error");
   }
 }
 
@@ -483,9 +467,10 @@ function updateWarehouseTotals() {
   el("vndbTotalCount").textContent = vndbTotal;
   el("vndlTotalCount").textContent = vndlTotal;
 }// Copy functions
-function copyToClipboard(text) {
+function copyToClipboard(text, description = null) {
   navigator.clipboard.writeText(text).then(() => {
-    notice("Đã copy vào clipboard!", "success", 12000);
+    const message = description ? `✅ Đã copy: ${description}` : "✅ Đã copy vào clipboard!";
+    notice(message, "success");
   }).catch(() => {
     // Fallback for older browsers
     const textArea = document.createElement("textarea");
@@ -494,7 +479,8 @@ function copyToClipboard(text) {
     textArea.select();
     document.execCommand('copy');
     document.body.removeChild(textArea);
-    notice("Đã copy vào clipboard!", "success", 12000);
+    const message = description ? `✅ Đã copy: ${description}` : "✅ Đã copy vào clipboard!";
+    notice(message, "success");
   });
 }
 
@@ -505,8 +491,18 @@ function copyWarehouseProvince(warehouse, province) {
     return;
   }
 
+  // Map province names for display
+  const provinceNames = {
+    'danang': 'Đà Nẵng (36)',
+    'hue': 'Huế (35)',
+    'quangnam': 'Quảng Nam (37)'
+  };
+
   const orderNumbers = orders.map(order => order.wms_order_no).join('\n');
-  copyToClipboard(orderNumbers);
+  const warehouseName = warehouse.toUpperCase();
+  const provinceName = provinceNames[province] || province;
+
+  copyToClipboard(orderNumbers, `${warehouseName} - ${provinceName}: ${orders.length} đơn`);
 }
 
 function copyWarehouseAll(warehouse) {
@@ -517,22 +513,12 @@ function copyWarehouseAll(warehouse) {
   }
 
   const orderNumbers = allOrders.map(order => order.wms_order_no).join('\n');
-  copyToClipboard(orderNumbers);
+  const warehouseName = warehouse.toUpperCase();
+
+  copyToClipboard(orderNumbers, `${warehouseName} - Tất cả: ${allOrders.length} đơn`);
 }
 
-function copyAll() {
-  const vndbOrders = [...sddData.vndb.danang, ...sddData.vndb.hue, ...sddData.vndb.quangnam];
-  const vndlOrders = [...sddData.vndl.danang, ...sddData.vndl.hue, ...sddData.vndl.quangnam];
-  const allOrders = [...vndbOrders, ...vndlOrders];
-
-  if (allOrders.length === 0) {
-    notice("Không có đơn hàng để copy", "warning");
-    return;
-  }
-
-  const orderNumbers = allOrders.map(order => order.wms_order_no).join('\n');
-  copyToClipboard(orderNumbers);
-}// Event listeners
+// Event listeners
 document.addEventListener('DOMContentLoaded', function() {
   // Time range selector
   el("timeRange").addEventListener('change', function() {
@@ -555,10 +541,6 @@ document.addEventListener('DOMContentLoaded', function() {
   el("btnCopyVndlHue").addEventListener('click', () => copyWarehouseProvince('vndl', 'hue'));
   el("btnCopyVndlQuangnam").addEventListener('click', () => copyWarehouseProvince('vndl', 'quangnam'));
   el("btnCopyVndlAll").addEventListener('click', () => copyWarehouseAll('vndl'));
-
-  // Global copy button (optional)
-  const btnAll = el("btnCopyAll");
-  if (btnAll) btnAll.addEventListener('click', copyAll);
 
   // Initialize default time inputs for custom range
   const now = new Date();
