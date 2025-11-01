@@ -275,15 +275,21 @@ def _filter_and_process_orders(df: pd.DataFrame, wh: str, lane_filter: str = "L-
     filtered_mask = mask_state & mask_lane & wms_no.ne("")
     filtered_df = df[filtered_mask]
 
-    # Create order list with details
+    # Create order list with normalized WMS order numbers and details
+    # Use the previously computed `wms_no` Series (normalized) so uniqueness
+    # later is reliable and not affected by whitespace or formatting differences.
     orders = []
-    for _, row in filtered_df.iterrows():
+    for idx, row in filtered_df.iterrows():
+        # Prefer the normalized value from wms_no Series; fallback to raw cell
+        norm_wms = wms_no.loc[idx] if idx in wms_no.index else str(row.get("WMS Order No", "")).strip()
         orders.append({
-            "wms_order_no": row["WMS Order No"],
-            "buyer_state": row["Buyer State"],
-            "lane_code": row["Lane Code"],
-            "warehouse": wh,  # Add warehouse information
-            "status": "Normal"  # Default status, will be updated by status breakdown
+            "wms_order_no": norm_wms,
+            "buyer_state": str(row.get("Buyer State", "")).strip(),
+            "lane_code": str(row.get("Lane Code", "")).strip(),
+            "warehouse": wh,
+            "status": "Normal",
+            # keep raw value for debugging if needed
+            "raw_wms_order_no": row.get("WMS Order No", "")
         })
 
     return orders
@@ -300,6 +306,21 @@ def _run_for_wh(wh: str, time_from: int, time_to: int, lane_filter: str = "L-VN1
 
         df = _create_and_fetch_excel(headers, time_from, time_to, wh)
         orders = _filter_and_process_orders(df, wh, lane_filter)
+
+        # Deduplicate orders by normalized WMS Order No while preserving order.
+        # This ensures FE won't see duplicates and total counts are correct.
+        seen = set()
+        unique_orders = []
+        for o in orders:
+            key = str(o.get("wms_order_no", "")).strip()
+            if not key:
+                # skip empty keys
+                continue
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_orders.append(o)
+        orders = unique_orders
 
         # Get unique order numbers for status breakdown
         wms_list = [order["wms_order_no"] for order in orders]
@@ -360,13 +381,44 @@ def api_sdd_fetch():
 
         vndb_orders = results.get("VNDB", [])
         vndl_orders = results.get("VNDL", [])
+
+        # Safety: dedupe again at API layer per-warehouse to avoid any FE duplicates
+        # in case upstream logic or FE mixing reintroduces duplicates.
+        def _dedupe_orders(orders_list: List[dict]) -> List[dict]:
+            seen_local = set()
+            out = []
+            for o in orders_list:
+                k = str(o.get("wms_order_no", "")).strip()
+                if not k or k in seen_local:
+                    continue
+                seen_local.add(k)
+                out.append(o)
+            return out
+
+        before_vndb, before_vndl = len(vndb_orders), len(vndl_orders)
+        vndb_orders = _dedupe_orders(vndb_orders)
+        vndl_orders = _dedupe_orders(vndl_orders)
+        after_vndb, after_vndl = len(vndb_orders), len(vndl_orders)
+        if before_vndb != after_vndb or before_vndl != after_vndl:
+            print(f"[SDD] Dedupe applied at API layer: VNDB {before_vndb}->{after_vndb}, VNDL {before_vndl}->{after_vndl}")
+        # Keep legacy total as sum per-warehouse (backward compatible)
         total_orders = len(vndb_orders) + len(vndl_orders)
+
+        # Also compute a global unique total across both warehouses by wms_order_no
+        # to avoid double counting if the same order appears in both datasets.
+        seen_all = set()
+        for o in (vndb_orders + vndl_orders):
+            k = str(o.get("wms_order_no", "")).strip()
+            if k:
+                seen_all.add(k)
+        total_unique_orders = len(seen_all)
 
         response = {
             "success": True,
             "vndb_orders": vndb_orders,
             "vndl_orders": vndl_orders,
             "total_orders": total_orders,
+            "total_unique_orders": total_unique_orders,
             "stats": {
                 "vndb": statuses.get("VNDB", {}),
                 "vndl": statuses.get("VNDL", {})
