@@ -7,6 +7,7 @@ import os
 import sys
 import logging
 import hashlib
+import socket
 from flask import Flask, request, jsonify, render_template, url_for
 from waitress import serve
 
@@ -36,6 +37,9 @@ PUBLIC_PATHS = {"/", "/scan", "/handover", "/sdd"}
 import logging, logging.config
 from logging.handlers import RotatingFileHandler
 
+# Get computer name for logging
+COMPUTER_NAME = socket.gethostname()
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_DIR = os.getenv("LOG_DIR", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -44,7 +48,7 @@ logging.config.dictConfig({
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "compact": {"format": "%(asctime)s [%(levelname)s] %(message)s", "datefmt": "%H:%M:%S"},
+        "compact": {"format": "[%(asctime)s] [%(levelname)s] %(message)s", "datefmt": "%H:%M:%S"},
     },
     "handlers": {
         "console": {
@@ -76,12 +80,12 @@ logging.getLogger("waitress").setLevel(LOG_LEVEL)
 # (Tuỳ chọn) log mỗi request đơn giản
 @app.after_request
 def _log_response(response):
-    # Log với status code
+    # Log với status code và computer name
     method = request.method
     path = request.path
     status = response.status_code
 
-    app.logger.info("%s %s - %d", method, path, status)
+    app.logger.info("[%s] %s %s - %d", COMPUTER_NAME, method, path, status)
     sys.stdout.flush()
     return response
 
@@ -118,7 +122,7 @@ def run_flask():
 
     if dev_mode:
         # Use Flask's built-in development server with auto-reload
-        print(f"[DEV MODE] Flask dev server on http://{host}:{port}")
+        print(f"[DEV MODE] [{COMPUTER_NAME}] Flask dev server on http://{host}:{port}")
         print("[DEV MODE] Auto-reload ENABLED - server will restart on file changes")
         app.run(
             host=host,
@@ -129,13 +133,14 @@ def run_flask():
         )
     else:
         # Production: use Waitress
-        print(f"[PRODUCTION] Serving on http://{host}:{port} (waitress, threads={threads})")
+        print(f"[PRODUCTION] [{COMPUTER_NAME}] Serving on http://{host}:{port} (waitress, threads={threads})")
         serve(app, host=host, port=port, threads=threads)
 
 # ───── Entry Point ─────
 if __name__ == "__main__":
     # Initialize Firebase on startup
     ensure_firebase()
+    app.logger.info("[%s] Starting application...", COMPUTER_NAME)
 
     # Check if running as child process (for watchdog)
     if "--child" in sys.argv:
