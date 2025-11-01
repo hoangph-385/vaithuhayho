@@ -624,10 +624,32 @@
     el(`${prefix}-fullname`).textContent    =(info.full_name||"").toUpperCase();
     el(`${prefix}-vendor`).textContent      =(info.contractor||"").toUpperCase();
     el(`${prefix}-vendor-code`).textContent =(info.staff_id||"").toUpperCase();
-    el(`${prefix}-gender`).textContent      =(info.gender||"").toUpperCase();
+    const genderUpper = (info.gender||"").toUpperCase();
+    el(`${prefix}-gender`).textContent      = genderUpper;
     el(`${prefix}-birth`).textContent       =(info.birth_year||"");
     const imgEl = el(`${prefix}-avatar`);
     if (imgEl) imgEl.src = img || "";
+
+    // Write gender uppercase to Firebase immediately when retrieved
+    if (genderUpper && window.__firebaseDB && (prefix === "in" || prefix === "out")) {
+      try {
+        const wh = el("warehouse").value || "VNDB";
+        const shiftVal = el("hour").value + ":" + el("minute").value;
+        const vendorName = info.contractor || "";
+        const wfmCode = info.staff_id || "";
+
+        if (wh && shiftVal && vendorName && wfmCode) {
+          const path = rtdbRecPath(wh, todayKey(), shiftVal, vendorName, wfmCode);
+          fetch(path, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ gender: genderUpper })
+          }).catch(e => console.warn("Firebase gender write failed:", e));
+        }
+      } catch(e) {
+        console.warn("Firebase gender write error:", e);
+      }
+    }
   }
 
   function renderInCounters(stats){

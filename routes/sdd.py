@@ -13,10 +13,11 @@ import pandas as pd
 import unicodedata
 import requests
 from datetime import datetime, timedelta, timezone
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 from typing import List, Tuple, Dict
 import time
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, abort
+from werkzeug.exceptions import ClientDisconnected
 
 # Import utility functions
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -344,6 +345,8 @@ def _run_for_wh(wh: str, time_from: int, time_to: int, lane_filter: str = "L-VN1
 @bp.route("/sdd", methods=["POST"])
 def api_sdd_fetch():
     """Fetch SDD data for both warehouses"""
+    import uuid
+    req_id = str(uuid.uuid4())[:8]
     try:
         req = request.get_json(force=True) or {}
         time_from = req.get("time_from")
@@ -358,26 +361,45 @@ def api_sdd_fetch():
         # Log time range
         dfrom = datetime.fromtimestamp(time_from, TZ).strftime("%Y-%m-%d %H:%M:%S")
         dto = datetime.fromtimestamp(time_to, TZ).strftime("%Y-%m-%d %H:%M:%S")
-        print(f"⏱️ SDD Range: {dfrom} → {dto} (GMT+7)")
+        print(f"[{req_id}] ⏱️ SDD Range: {dfrom} → {dto} (GMT+7)")
 
         results = {}
         errors = {}
         statuses = {}
 
+        # Use timeout to prevent long-running tasks from holding resources
+        # if FE disconnects. Default 300s (5 min) for full export + processing.
+        timeout_sec = 300
+        start_time = time.time()
+
         with ThreadPoolExecutor(max_workers=len(WHS)) as exe:
             futs = {exe.submit(_run_for_wh, wh, time_from, time_to, lane_filter): wh for wh in WHS}
-            for fut in as_completed(futs):
-                wh = futs[fut]
-                try:
-                    w, orders, err, stat = fut.result()
-                    results[w] = orders
-                    if err:
-                        errors[w] = err
-                    statuses[w] = stat
-                except Exception as e:
-                    print(f"❌ {wh} unexpected error: {e}")
-                    results[wh] = []
-                    errors[wh] = f"UnexpectedError: {e}"
+            try:
+                for fut in as_completed(futs, timeout=timeout_sec):
+                    wh = futs[fut]
+                    try:
+                        w, orders, err, stat = fut.result(timeout=5)
+                        results[w] = orders
+                        if err:
+                            errors[w] = err
+                        statuses[w] = stat
+                        print(f"[{req_id}] ✓ {w}: {len(orders)} orders collected")
+                    except FuturesTimeoutError:
+                        print(f"[{req_id}] ⚠️ {wh} task timeout (5s)")
+                        results[wh] = []
+                        errors[wh] = "Task timeout"
+                    except Exception as e:
+                        print(f"[{req_id}] ❌ {wh} unexpected error: {e}")
+                        results[wh] = []
+                        errors[wh] = f"UnexpectedError: {e}"
+            except FuturesTimeoutError:
+                print(f"[{req_id}] ⚠️ Executor timeout (300s), returning partial results")
+            except ClientDisconnected:
+                print(f"[{req_id}] ⚠️ Client disconnected mid-fetch, aborting")
+                return jsonify({"error": "Client disconnected", "partial": results, "request_id": req_id}), 499
+            except Exception as e:
+                print(f"[{req_id}] ❌ Executor error: {e}")
+                return jsonify({"error": f"Execution error: {e}", "request_id": req_id}), 500
 
         vndb_orders = results.get("VNDB", [])
         vndl_orders = results.get("VNDL", [])
@@ -400,7 +422,7 @@ def api_sdd_fetch():
         vndl_orders = _dedupe_orders(vndl_orders)
         after_vndb, after_vndl = len(vndb_orders), len(vndl_orders)
         if before_vndb != after_vndb or before_vndl != after_vndl:
-            print(f"[SDD] Dedupe applied at API layer: VNDB {before_vndb}->{after_vndb}, VNDL {before_vndl}->{after_vndl}")
+            print(f"[{req_id}] [SDD] Dedupe applied at API layer: VNDB {before_vndb}->{after_vndb}, VNDL {before_vndl}->{after_vndl}")
         # Keep legacy total as sum per-warehouse (backward compatible)
         total_orders = len(vndb_orders) + len(vndl_orders)
 
@@ -430,8 +452,10 @@ def api_sdd_fetch():
             }
         }
 
+        elapsed = time.time() - start_time
+        print(f"[{req_id}] ✓ Complete in {elapsed:.2f}s, returning {total_orders} orders ({total_unique_orders} unique)")
         return jsonify(response)
 
     except Exception as e:
-        print(f"SDD API error: {e}")
+        print(f"[{req_id}] ❌ SDD API error: {e}")
         return jsonify({"error": str(e)}), 500
