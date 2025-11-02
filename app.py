@@ -80,14 +80,35 @@ logging.getLogger("waitress").setLevel(LOG_LEVEL)
 # (Tuỳ chọn) log mỗi request đơn giản
 @app.after_request
 def _log_response(response):
-    # Log với status code và computer name
+    # Log với status code và client info (IP, User-Agent)
     method = request.method
     path = request.path
     status = response.status_code
+    client_ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent', 'Unknown')
 
-    app.logger.info("[%s] %s %s - %d", COMPUTER_NAME, method, path, status)
+    # Extract browser/device info from User-Agent
+    if 'Chrome' in user_agent:
+        browser = 'Chrome'
+    elif 'Firefox' in user_agent:
+        browser = 'Firefox'
+    elif 'Safari' in user_agent:
+        browser = 'Safari'
+    elif 'Edge' in user_agent:
+        browser = 'Edge'
+    else:
+        browser = 'Other'
+
+    # Log với client IP và browser info
+    app.logger.info("[CLIENT: %s | %s] %s %s - %d", client_ip, browser, method, path, status)
     sys.stdout.flush()
     return response
+
+# Signal handler for server restart
+import atexit
+@atexit.register
+def _on_exit():
+    app.logger.warning("[SERVER] Process exiting (auto-reload may have triggered restart)")
 
 # ───── Routes ─────
 @app.route("/")
@@ -121,15 +142,27 @@ def run_flask():
     dev_mode = os.getenv("FLASK_ENV", "development") == "development" or "--dev" in sys.argv
 
     if dev_mode:
+        # Enable watchdog debug logging (if watchdog is used)
+        os.environ["WATCHDOG_LOG_LEVEL"] = "DEBUG"
+        logging.getLogger("watchdog").setLevel(logging.DEBUG)
+
         # Use Flask's built-in development server with auto-reload
         print(f"[DEV MODE] [{COMPUTER_NAME}] Flask dev server on http://{host}:{port}")
         print("[DEV MODE] Auto-reload ENABLED - server will restart on file changes")
+        print("[DEV MODE] Monitoring Python, template, CSS, JS files")
+        print("[DEV MODE] Excludes: __pycache__, .git, logs, node_modules, .venv")
+        print("[DEV MODE] Tip: Try editing any .py, .html, .css, .js file to trigger restart")
+
+        # Configure Flask logging to show reloader info
+        app.logger.info("[SERVER: %s] Starting Flask dev server with auto-reload", COMPUTER_NAME)
+
+        # Use stat reloader (more stable on Windows than watchdog)
         app.run(
             host=host,
             port=port,
             debug=True,
             use_reloader=True,
-            reloader_type='stat'  # Use stat reloader instead of watchdog
+            reloader_type='stat'  # stat is more stable on Windows
         )
     else:
         # Production: use Waitress
@@ -140,7 +173,7 @@ def run_flask():
 if __name__ == "__main__":
     # Initialize Firebase on startup
     ensure_firebase()
-    app.logger.info("[%s] Starting application...", COMPUTER_NAME)
+    app.logger.info("[SERVER: %s] Starting application...", COMPUTER_NAME)
 
     # Check if running as child process (for watchdog)
     if "--child" in sys.argv:

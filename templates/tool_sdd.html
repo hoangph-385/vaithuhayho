@@ -151,6 +151,15 @@
 <script>
 const LANE_CODE = "L-VN11";
 
+// Pre-load audio files for immediate playback (no delay)
+const audioCache = {
+  success: new Audio('/static/sounds/sys_success.mp3'),
+  error: new Audio('/static/sounds/sys_error.mp3')
+};
+// Set volume for cached audio
+audioCache.success.volume = 0.5;
+audioCache.error.volume = 0.5;
+
 // Global state
 let sddData = {
   vndb: {
@@ -164,6 +173,12 @@ let sddData = {
     quangnam: []
   },
   stats: { vndb: {}, vndl: {} }
+};
+
+// Track last notification state (to display UI - audio now plays immediately)
+let lastNotificationState = {
+  message: null,
+  type: null
 };
 
 // Utility functions
@@ -185,6 +200,9 @@ function notice(msg, type = "info", duration = 0) {
   n.setAttribute("data-kind", type);
   n.style.display = "block";
 
+  // Save notification state for replay when tab becomes active
+  lastNotificationState = { message: msg, type: type };
+
   // Only hide after duration if duration > 0
   if (duration > 0) {
     setTimeout(() => { n.style.display = "none"; }, duration);
@@ -193,18 +211,30 @@ function notice(msg, type = "info", duration = 0) {
 
 function playSound(type) {
   try {
-    let soundFile;
+    let audio;
     if (type === "success" || type === "ok") {
-      soundFile = "/static/sounds/sys_success.mp3";
+      audio = audioCache.success;
     } else if (type === "error") {
-      soundFile = "/static/sounds/sys_error.mp3";
+      audio = audioCache.error;
     } else {
       return; // No sound for other types
     }
 
-    const audio = new Audio(soundFile);
-    audio.volume = 0.5;
-    audio.play().catch(e => console.log("Could not play sound:", e));
+    // Reset audio to start (in case it's still playing from previous call)
+    audio.currentTime = 0;
+
+    // Force play immediately - bypass any browser suspension
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise
+        .catch(e => {
+          console.warn("Audio playback failed:", e);
+          // Fallback: try again with muted=false
+          audio.muted = false;
+          audio.play().catch(err => console.log("Sound retry failed:", err));
+        });
+    }
   } catch (e) {
     console.log("Sound error:", e);
   }

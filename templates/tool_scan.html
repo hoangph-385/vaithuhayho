@@ -555,9 +555,16 @@
     try{
       const data=await fetchStaffByVendor(code);
       window.currentStaff = data;
+
+      // ❌ KHÔNG cho phép scan nếu không có staff_no (WFM code)
+      if (!data.staff_no || !data.staff_no.trim()) {
+        throw new Error("Không tìm thấy WFM code từ vendor. Vui lòng kiểm tra lại mã.");
+      }
+
       return data;
     }catch(e){
-      return { staff_no: code, info:{}, img_url:"" };
+      // Không fallback về code nữa - throw error ra ngoài
+      throw e;
     }
   }
 
@@ -624,32 +631,10 @@
     el(`${prefix}-fullname`).textContent    =(info.full_name||"").toUpperCase();
     el(`${prefix}-vendor`).textContent      =(info.contractor||"").toUpperCase();
     el(`${prefix}-vendor-code`).textContent =(info.staff_id||"").toUpperCase();
-    const genderUpper = (info.gender||"").toUpperCase();
-    el(`${prefix}-gender`).textContent      = genderUpper;
+    el(`${prefix}-gender`).textContent      =(info.gender||"").toUpperCase();
     el(`${prefix}-birth`).textContent       =(info.birth_year||"");
     const imgEl = el(`${prefix}-avatar`);
     if (imgEl) imgEl.src = img || "";
-
-    // Write gender uppercase to Firebase immediately when retrieved
-    if (genderUpper && window.__firebaseDB && (prefix === "in" || prefix === "out")) {
-      try {
-        const wh = el("warehouse").value || "VNDB";
-        const shiftVal = el("hour").value + ":" + el("minute").value;
-        const vendorName = info.contractor || "";
-        const wfmCode = info.staff_id || "";
-
-        if (wh && shiftVal && vendorName && wfmCode) {
-          const path = rtdbRecPath(wh, todayKey(), shiftVal, vendorName, wfmCode);
-          fetch(path, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ gender: genderUpper })
-          }).catch(e => console.warn("Firebase gender write failed:", e));
-        }
-      } catch(e) {
-        console.warn("Firebase gender write error:", e);
-      }
-    }
   }
 
   function renderInCounters(stats){
@@ -1029,18 +1014,22 @@
 
       const rec = {
         type:"in",
-        wfm_code: staff_no,
-        fullname: info.full_name || "",
-        vendor_name: info.contractor || "",
+        wfm_code: staff_no.toUpperCase(),
+        fullname: (info.full_name || "").toUpperCase(),
+        vendor_name: (info.contractor || "").toUpperCase(),
         shift_in: shiftTime,
         date: todayKey(),
-        gender: info.gender || "",
-        vendor_code: info.staff_id || "",
+        gender: (info.gender || "").toUpperCase(),
+        vendor_code: (info.staff_id || "").toUpperCase(),
         birth_year: info.birth_year || "",
-        operator, wms_user_id, gsheet_time_in
+        operator: operator.toUpperCase(),
+        wms_user_id,
+        gsheet_time_in
       };
 
-      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, rec.vendor_name || "", rec.wfm_code || "");
+      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, rec.vendor_name, staff_no.toUpperCase());
+      console.log("[SCAN IN] Firebase path:", path);
+      console.log("[SCAN IN] staff_no:", staff_no, "| vendor_code:", rec.vendor_code);
       await fetch(path, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(rec) });
 
       setPersonUI("in", info, img_url ? await imgFromUrl(img_url) : "");
@@ -1143,8 +1132,10 @@
         todayKey(),
         rec.shift_in || rec.shift || "",      // node ca
         rec.vendor_name || "",                // node vendor
-        rec.wfm_code || ""                    // node mã WFM
+        staff_no.toUpperCase()                // Dùng staff_no đã parse, chuyển uppercase
       );
+      console.log("[TASK] Firebase path:", url);
+      console.log("[TASK] staff_no:", staff_no, "| rec.wfm_code:", rec.wfm_code, "| rec.vendor_code:", rec.vendor_code);
       await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type":"application/json" },
@@ -1241,8 +1232,10 @@
         todayKey(),
         rec.shift_in || rec.shift,
         rec.vendor_name || "",
-        rec.wfm_code || ""
+        staff_no.toUpperCase()  // Dùng staff_no đã parse, chuyển uppercase
       );
+      console.log("[SCAN OUT] Firebase path:", url);
+      console.log("[SCAN OUT] staff_no:", staff_no, "| rec.wfm_code:", rec.wfm_code, "| rec.vendor_code:", rec.vendor_code);
       await fetch(url, { method:"PATCH", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(patch) });
 
       notice(`✅ ${(info?.full_name || rec.fullname || "")} scan out ${now.toTimeString().slice(0,8)}`, "success", 5000);
@@ -1339,9 +1332,7 @@
     });
 
     // Reset filters button
-    el("btnResetFilters")?.addEventListener('click', resetAllFilters);
-
-    // Filter modal events
+    el("btnResetFilters")?.addEventListener('click', resetAllFilters);    // Filter modal events
     el("filterCancel")?.addEventListener('click', hideFilterModal);
     el("filterModal")?.addEventListener('click', (e)=>{
       if(e.target === el("filterModal")) hideFilterModal();
