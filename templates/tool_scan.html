@@ -103,7 +103,7 @@
 
   <!-- ========================== PANEL: TASK ========================== -->
   <section id="tab-task" class="tab-panel grid grid-2 is-hidden">
-    <div class="grid">
+    <div class="grid" style="gap: 0; display: flex; flex-direction: column;">
       <div class="card row">
         <input id="task-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
         <select id="task-type">
@@ -115,7 +115,7 @@
         <div id="task-result" class="kpi ml-auto"></div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-top: -1px; border-radius: 0 0 8px 8px;">
         <div class="grid grid-2">
           <div>
             <div class="kpi" id="task-fullname"></div>
