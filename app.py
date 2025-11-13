@@ -136,7 +136,7 @@ def run_flask():
     """Run Flask app with Waitress server (production) or Flask dev server (development)"""
     host = os.getenv("FLASK_HOST", "127.0.0.1")
     port = int(os.getenv("FLASK_PORT", "9090"))
-    threads = int(os.getenv("FLASK_THREADS", "8"))
+    threads = int(os.getenv("FLASK_THREADS", "15"))
 
     # Check if running in development mode
     dev_mode = os.getenv("FLASK_ENV", "development") == "development" or "--dev" in sys.argv
@@ -152,17 +152,20 @@ def run_flask():
         print("[DEV MODE] Monitoring Python, template, CSS, JS files")
         print("[DEV MODE] Excludes: __pycache__, .git, logs, node_modules, .venv")
         print("[DEV MODE] Tip: Try editing any .py, .html, .css, .js file to trigger restart")
+        print(f"[DEV MODE] Threading ENABLED - using {threads} threads for concurrent requests")
 
         # Configure Flask logging to show reloader info
-        app.logger.info("[SERVER: %s] Starting Flask dev server with auto-reload", COMPUTER_NAME)
+        app.logger.info("[SERVER: %s] Starting Flask dev server with auto-reload and threading", COMPUTER_NAME)
 
-        # Use stat reloader (more stable on Windows than watchdog)
+        # Use stat reloader with threading enabled
         app.run(
             host=host,
             port=port,
             debug=True,
             use_reloader=True,
-            reloader_type='stat'  # stat is more stable on Windows
+            reloader_type='stat',  # stat is more stable on Windows
+            threaded=True,         # Enable threading for concurrent requests
+            processes=1            # Use threads instead of processes
         )
     else:
         # Production: use Waitress
