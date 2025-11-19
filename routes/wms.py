@@ -316,7 +316,7 @@ def record_attendance():
                 except Exception:
                     j = {"raw": r.text[:600]}
                 elapsed = time.time() - start_time
-                _log("ATTN success", elapsed_ms=int(elapsed*1000), request_id=req_id)
+                _log("ATTN success", elapsed_ms=int(elapsed*1000), request_id=req_id, candidate=cand)
                 return _ok(j)
 
             last_preview = body_preview
