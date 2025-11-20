@@ -8,7 +8,6 @@
 
 <!-- ===== Notice ===== -->
 <div id="notice" class="notice"></div>
-
   <div class="row card space-between">
     <div class="row">
       <label>Ngày</label>
@@ -36,7 +35,7 @@
       <!-- IN -->
       <div class="card">
         <div class="row">
-          <input id="in-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
+          <input id="in-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc Mã Vendor hoặc Mã WFM" spellcheck="false">
           <button id="btnScanIn" class="btn-action">Scan In</button>
         </div>
         <hr>
@@ -59,7 +58,7 @@
       <!-- OUT -->
       <div class="card">
         <div class="row">
-          <input id="out-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc WFM" spellcheck="false">
+          <input id="out-wfm" type="text" class="big grow" placeholder="Scan Mã QR hoặc Mã Vendor hoặc Mã WFM" spellcheck="false">
           <button id="btnScanOut" class="btn-action">Scan Out</button>
         </div>
         <hr>
@@ -159,6 +158,7 @@
   <div class="title">
     <span>Dashboard nhân sự</span>
     <div>
+      <button id="btnEditMode" class="btn-action" title="Bật/tắt chế độ chỉnh sửa">Edit Mode</button>
       <button id="btnResetFilters" class="btn-action" title="Reset tất cả bộ lọc">Reset Filters</button>
       <button id="btnExportXlsx" class="btn-action" title="Tải Excel">Export Excel</button>
     </div>
@@ -169,20 +169,20 @@
         <table class="table" id="tbl-dashboard">
           <thead>
             <tr>
-              <th class="sticky">STT</th>
-              <th class="sticky">Nhà Thầu <button class="filter-btn" data-col="vendor_name" title="Lọc">⏷</button></th>
-              <th class="sticky">Mã Vendor <button class="filter-btn" data-col="vendor_code" title="Lọc">⏷</button></th>
-              <th class="sticky">Mã WFM <button class="filter-btn" data-col="wfm_code" title="Lọc">⏷</button></th>
-              <th class="sticky">Mã WMS <button class="filter-btn" data-col="wms_user_id" title="Lọc">⏷</button></th>
-              <th class="sticky tbl-col-fullname">Họ và Tên <button class="filter-btn" data-col="fullname" title="Lọc">⏷</button></th>
-              <th class="sticky tbl-col-gender">Giới tính <button class="filter-btn" data-col="gender" title="Lọc">⏷</button></th>
-              <th class="sticky">Năm sinh <button class="filter-btn" data-col="birth_year" title="Lọc">⏷</button></th>
-              <th class="sticky">Shift In <button class="filter-btn" data-col="shift_in" title="Lọc">⏷</button></th>
-              <th class="sticky">Nghỉ Trưa <button class="filter-btn" data-col="break_60" title="Lọc">⏷</button></th>
-              <th class="sticky">Vào Ca Trưa <button class="filter-btn" data-col="break_60_in" title="Lọc">⏷</button></th>
-              <th class="sticky">Nghỉ OT <button class="filter-btn" data-col="break_30" title="Lọc">⏷</button></th>
-              <th class="sticky">Vào Ca OT <button class="filter-btn" data-col="break_30_in" title="Lọc">⏷</button></th>
-              <th class="sticky">Shift Out <button class="filter-btn" data-col="shift_out" title="Lọc">⏷</button></th>
+              <th class="sticky">No.</th>
+              <th class="sticky"><button class="filter-btn" data-col="vendor_name" title="Lọc">⏷</button>Nhà Thầu</th>
+              <th class="sticky"><button class="filter-btn" data-col="vendor_code" title="Lọc">⏷</button>Mã Vendor</th>
+              <th class="sticky"><button class="filter-btn" data-col="wfm_code" title="Lọc">⏷</button>Mã WFM</th>
+              <th class="sticky"><button class="filter-btn" data-col="wms_user_id" title="Lọc">⏷</button>Mã WMS</th>
+              <th class="sticky tbl-col-fullname"><button class="filter-btn" data-col="fullname" title="Lọc">⏷</button>Họ và Tên</th>
+              <th class="sticky tbl-col-gender"><button class="filter-btn" data-col="gender" title="Lọc">⏷</button>Giới tính</th>
+              <th class="sticky"><button class="filter-btn" data-col="birth_year" title="Lọc">⏷</button>SN</th>
+              <th class="sticky"><button class="filter-btn" data-col="shift_in" title="Lọc">⏷</button>In</th>
+              <th class="sticky"><button class="filter-btn" data-col="break_60" title="Lọc">⏷</button>Nghỉ Trưa</th>
+              <th class="sticky"><button class="filter-btn" data-col="break_60_in" title="Lọc">⏷</button>Vào Ca</th>
+              <th class="sticky"><button class="filter-btn" data-col="break_30" title="Lọc">⏷</button>Nghỉ OT</th>
+              <th class="sticky"><button class="filter-btn" data-col="break_30_in" title="Lọc">⏷</button>Vào Ca</th>
+              <th class="sticky"><button class="filter-btn" data-col="shift_out" title="Lọc">⏷</button>Out</th>
             </tr>
           </thead>
           <tbody id="tbody-dash">
@@ -212,6 +212,39 @@
         <button id="filterClear">Xóa tất cả</button>
         <button id="filterCancel">Hủy</button>
         <button id="filterApply" class="btn-primary">Áp dụng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="filter-modal">
+    <div class="filter-content">
+      <h4>Chỉnh sửa nhân sự</h4>
+      <div id="editForm">
+        <label>Nhà thầu</label>
+        <input id="edit-vendor_name" type="text">
+
+        <label>Mã Vendor</label>
+        <input id="edit-vendor_code" type="text">
+
+        <label>Mã WFM</label>
+        <input id="edit-wfm_code" type="text" disabled>
+
+        <label>Mã WMS</label>
+        <input id="edit-wms_user_id" type="text">
+
+        <label>Họ và tên</label>
+        <input id="edit-fullname" type="text">
+
+        <label>Giới tính</label>
+        <input id="edit-gender" type="text">
+
+        <label>Năm sinh</label>
+        <input id="edit-birth_year" type="text">
+      </div>
+      <div class="filter-actions">
+        <button id="editCancel">Hủy</button>
+        <button id="editSave" class="btn-primary">Lưu</button>
       </div>
     </div>
   </div>
@@ -262,6 +295,8 @@
   // ==== Vendor code helpers ====
   // 10 ký tự, bắt đầu bằng "SP", phần còn lại chữ/số
   const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
+  // Mã WFM thuần: S + 6 chữ số (ví dụ: S012345)
+  const WFM_RE = /^S\d{6}$/i;
 
   /** Cập nhật các counter tổng từ raw RTDB */
   function renderBreakCounters(raw){
@@ -487,8 +522,22 @@
       n.style.cursor  = locked ? "not-allowed" : "pointer";
     });
 
+    // Disable Edit Mode button when viewing non-today dates
+    const btnEdit = document.getElementById('btnEditMode');
+    if(btnEdit){
+      btnEdit.disabled = !!locked;
+      btnEdit.style.opacity = locked ? "0.6" : "1";
+      btnEdit.style.cursor  = locked ? "not-allowed" : "pointer";
+      if(locked && document.body.dataset.editMode === "1"){
+        // Auto-disable edit mode if locked
+        document.body.dataset.editMode = "0";
+        btnEdit.textContent = "Edit Mode";
+        btnEdit.classList.remove('active');
+      }
+    }
+
     if (locked) {
-      notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét.", "warning", 6000);
+      notice("Đang xem ngày cũ (hoặc khác hôm nay) — đã tắt chức năng quét và chỉnh sửa.", "warning", 6000);
     }
   }
 
@@ -549,10 +598,28 @@
 
 
   async function parseQR(inputCode){
-    const code=(inputCode||"").trim();
-    if(!code) throw new Error("Mã trống");
-    try{
-      const data=await fetchStaffByVendor(code);
+    const code = (inputCode || "").trim();
+    if (!code) throw new Error("Mã trống");
+
+    // Nếu người dùng nhập trực tiếp mã WFM (S + 6 số) thì bỏ qua vanhanh,
+    // trả về cấu trúc tối thiểu để các hàm scan dùng luôn.
+    if (WFM_RE.test(code)) {
+      return {
+        staff_no: code.toUpperCase(),
+        info: {
+          full_name:  "",
+          contractor: "",
+          gender:     "",
+          birth_year: "",
+          staff_id:   ""
+        },
+        img_url: ""
+      };
+    }
+
+    // Còn lại coi như QR / vendor, dùng vanhanh như cũ
+    try {
+      const data = await fetchStaffByVendor(code);
       window.currentStaff = data;
 
       // ❌ KHÔNG cho phép scan nếu không có staff_no (WFM code)
@@ -561,7 +628,7 @@
       }
 
       return data;
-    }catch(e){
+    } catch (e) {
       // Không fallback về code nữa - throw error ra ngoài
       throw e;
     }
@@ -641,25 +708,26 @@
     el("in-total").textContent = `Total Scan In: ${stats.total_in || 0}`;
 
     // Helper: map vendor name to canonical columns
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
-      // Handle both GRG and GRGR
+      // Handle bOther GRG and GRGR
       if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
-      return null; // ignore others in this table
+      if (s === "Other")       return "Other";
+      return null; // ignore Otherers in this table
     };
 
     // Build per-shift rows
     const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
     const rows = [];
-    let grand = { Agari:0, MBB:0, GRG:0, HTVN:0 };
+    let grand = { Agari:0, MBB:0, GRG:0, HTVN:0, Other:0 };
 
     for (const sh of shifts) {
       const group = raw[sh] || {};
-      const counts = { Agari:0, MBB:0, GRG:0, HTVN:0 };
+      const counts = { Agari:0, MBB:0, GRG:0, HTVN:0, Other:0 };
       for (const [vn, sg] of Object.entries(group)) {
         const canon = toCanon(vn);
         if (!canon) continue;
@@ -669,8 +737,9 @@
       grand.MBB   += counts.MBB;
       grand.GRG   += counts.GRG;
       grand.HTVN  += counts.HTVN;
-      const total = counts.Agari + counts.MBB + counts.GRG + counts.HTVN;
-      rows.push([sh, counts.Agari, counts.MBB, counts.GRG, counts.HTVN, total]);
+      grand.Other += counts.Other;
+      const total = counts.Agari + counts.MBB + counts.GRG + counts.HTVN + counts.Other;
+      rows.push([sh, counts.Agari, counts.MBB, counts.GRG, counts.HTVN, counts.Other, total]);
     }
 
     // Render grid table into #in-shifts
@@ -684,9 +753,9 @@
     if(i===r.length-1) return `<td style=\"text-align:center;color:#28a745;font-weight:bold\">${fmt0(c)}</td>`;
     return `<td style=\"text-align:center\">${fmt0(c)}</td>`;
   }).join("")}</tr>`).join("")}</tbody>`;
-  const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN;
+  const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN + grand.Other;
   // Grand Total row có nền đỏ, chữ trắng
-  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmt0(grand.Agari)}</th><th style=\"text-align:center\">${fmt0(grand.MBB)}</th><th style=\"text-align:center\">${fmt0(grand.GRG)}</th><th style=\"text-align:center\">${fmt0(grand.HTVN)}</th><th style=\"text-align:center;font-weight:bold\">${fmt0(gTotal)}</th></tr></tfoot>`;
+  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmt0(grand.Agari)}</th><th style=\"text-align:center\">${fmt0(grand.MBB)}</th><th style=\"text-align:center\">${fmt0(grand.GRG)}</th><th style=\"text-align:center\">${fmt0(grand.HTVN)}</th><th style=\"text-align:center\">${fmt0(grand.Other)}</th><th style=\"text-align:center;font-weight:bold\">${fmt0(gTotal)}</th></tr></tfoot>`;
     const tableHtml = `<table class="table">${thead}${tbody}${tfoot}</table>`;
     el("in-shifts").innerHTML = tableHtml;
 
@@ -699,24 +768,25 @@
     const raw = stats.raw || {};
 
     // Canonical vendor mapping to align with In grid
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
       if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
+      if (s === "Other")       return "Other";
       return null;
     };
 
     const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
     const rows = [];
-    let grand = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0} };
+    let grand = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, Other:{in:0,out:0} };
     let totIn=0, totOut=0;
 
     for(const sh of shifts){
       const group = raw[sh] || {};
-      const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0} };
+      const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, Other:{in:0,out:0} };
       for(const [vn, sg] of Object.entries(group)){
         const canon = toCanon(vn);
         if(!canon) continue;
@@ -730,13 +800,14 @@
       grand.MBB.in   += counts.MBB.in;   grand.MBB.out   += counts.MBB.out;
       grand.GRG.in   += counts.GRG.in;   grand.GRG.out   += counts.GRG.out;
       grand.HTVN.in  += counts.HTVN.in;  grand.HTVN.out  += counts.HTVN.out;
+      grand.Other.in += counts.Other.in; grand.Other.out += counts.Other.out;
 
       const rowVendorCells = canonVendors.map(v => {
         const c = counts[v] || { in: 0, out: 0 };
         return `${c.out}/${c.in}`;
       });
-      const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in;
-      const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out;
+      const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in + counts.Other.in;
+      const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out + counts.Other.out;
       totIn += inSum; totOut += outSum;
       rows.push([sh, ...rowVendorCells, `${outSum}/${inSum}`]);
     }
@@ -753,10 +824,10 @@
       if(i===r.length-1) return `<td style=\"text-align:center;color:#28a745;font-weight:bold\">${fmtPair(parts[0], parts[1])}</td>`;
       return `<td style=\"text-align:center\">${fmtPair(parts[0], parts[1])}</td>`;
     }).join("")}</tr>`).join("")}</tbody>`;
-    const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in;
-    const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out;
+    const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in + grand.Other.in;
+    const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out + grand.Other.out;
   // Grand Total row có nền đỏ, chữ trắng
-  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmtPair(grand.Agari?.out||0,grand.Agari?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.MBB?.out||0,grand.MBB?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.GRG?.out||0,grand.GRG?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.HTVN?.out||0,grand.HTVN?.in||0)}</th><th style=\"text-align:center;font-weight:bold\">${fmtPair(gOut,gIn)}</th></tr></tfoot>`;
+  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmtPair(grand.Agari?.out||0,grand.Agari?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.MBB?.out||0,grand.MBB?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.GRG?.out||0,grand.GRG?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.HTVN?.out||0,grand.HTVN?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.Other?.out||0,grand.Other?.in||0)}</th><th style=\"text-align:center;font-weight:bold\">${fmtPair(gOut,gIn)}</th></tr></tfoot>`;
     const tableHtml = `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
     el("out-shifts").innerHTML = tableHtml;
     el("out-total").textContent = `Total Scan Out: ${totOut} / ${totIn}`;
@@ -769,23 +840,30 @@
   const DASH = { rows:[], filtered:[], page:1, pageSize:50, filters:{} };
 
   function normalizeDashRow(r){
+    // Helper to safely convert to string and handle undefined/null
+    const safe = (val, def = "") => {
+      if (val === undefined || val === null || val === "undefined" || val === "null") return def;
+      const s = String(val).trim();
+      return s === "" ? def : s;
+    };
+
     return {
-      vendor_name:     r.vendor_name || "",
-      vendor_code:     (r.vendor_code || r.vendorCode || r.vendor_id || "").toString().toUpperCase(),
-      wfm_code:        r.wfm_code || "",
-      wms_user_id:     (r.wms_user_id || "").toString(),
-      operator:        (r.operator || "").toString().toUpperCase(),
-      fullname:        (r.fullname || r.full_name || "").toString().toUpperCase(),
-      gender:          (r.gender || "").toString().toUpperCase(),
-      shift_in:        r.shift_in || r.shift || "",
-      shift_out:       r.shift_out || "",
-      birth_year:      r.birth_year || "",
-      gsheet_time_in:  r.gsheet_time_in || "",
-      break_60:        r.break_60 || "",
-      break_60_in:     r.break_60_in || "",
-      break_30:        r.break_30 || "",
-      break_30_in:     r.break_30_in || "",
-      gsheet_time_out: r.gsheet_time_out || ""
+      vendor_name:     safe(r.vendor_name),
+      vendor_code:     safe(r.vendor_code || r.vendorCode || r.vendor_id).toUpperCase(),
+      wfm_code:        safe(r.wfm_code),
+      wms_user_id:     safe(r.wms_user_id),
+      operator:        safe(r.operator).toUpperCase(),
+      fullname:        safe(r.fullname || r.full_name).toUpperCase(),
+      gender:          safe(r.gender).toUpperCase(),
+      shift_in:        safe(r.shift_in || r.shift),
+      shift_out:       safe(r.shift_out),
+      birth_year:      safe(r.birth_year),
+      gsheet_time_in:  safe(r.gsheet_time_in),
+      break_60:        safe(r.break_60),
+      break_60_in:     safe(r.break_60_in),
+      break_30:        safe(r.break_30),
+      break_30_in:     safe(r.break_30_in),
+      gsheet_time_out: safe(r.gsheet_time_out)
     };
   }
 
@@ -823,28 +901,38 @@
     if(DASH.page>maxPage) DASH.page=maxPage;
     const start=(DASH.page-1)*ps, end=Math.min(start+ps,total);
     const slice=DASH.filtered.slice(start,end);
+    const isEditMode = document.body.dataset.editMode === "1";
 
     for(let i=0;i<slice.length;i++){
       const r=slice[i];
       const stt=start+i+1;
+      const globalIdx = start+i;
       const tr=document.createElement("tr");
+
+      // Always render as text, but add editable attributes when edit mode is on
+      const editableClass = isEditMode ? 'editable' : '';
       const cells = [
-        { cls: '', value: stt },
-        { cls: '', value: r.vendor_name },
-        { cls: '', value: r.vendor_code },
-        { cls: '', value: r.wfm_code },
-        { cls: '', value: r.wms_user_id },
-        { cls: 'tbl-col-fullname', value: r.fullname },
-        { cls: 'tbl-col-gender', value: r.gender },
-        { cls: '', value: r.birth_year },
-        { cls: '', value: r.shift_in },  // Shift in (replaces Time in)
-        { cls: '', value: r.break_60 },        // Nghỉ Trưa
-        { cls: '', value: r.break_60_in },     // Vào Ca Trưa
-        { cls: '', value: r.break_30 },        // Nghỉ OT
-        { cls: '', value: r.break_30_in },     // Vào Ca OT
-        { cls: '', value: r.shift_out }  // Shift out (replaces Time Out)
+        { cls: '', value: stt, field: null },
+        { cls: editableClass, value: r.vendor_name, field: 'vendor_name' },
+        { cls: editableClass, value: r.vendor_code, field: 'vendor_code' },
+        { cls: '', value: r.wfm_code, field: null }, // WFM not editable
+        { cls: editableClass, value: r.wms_user_id, field: 'wms_user_id' },
+        { cls: `tbl-col-fullname ${editableClass}`, value: r.fullname, field: 'fullname' },
+        { cls: `tbl-col-gender ${editableClass}`, value: r.gender, field: 'gender' },
+        { cls: editableClass, value: r.birth_year, field: 'birth_year' },
+        { cls: editableClass, value: r.shift_in, field: 'shift_in' },
+        { cls: editableClass, value: r.break_60, field: 'break_60' },
+        { cls: editableClass, value: r.break_60_in, field: 'break_60_in' },
+        { cls: editableClass, value: r.break_30, field: 'break_30' },
+        { cls: editableClass, value: r.break_30_in, field: 'break_30_in' },
+        { cls: editableClass, value: r.shift_out, field: 'shift_out' }
       ];
-      tr.innerHTML = cells.map(c => `<td class="${c.cls}">${c.value ?? ""}</td>`).join("");
+
+      tr.innerHTML = cells.map(c => {
+        const dataAttrs = c.field ? `data-idx="${globalIdx}" data-field="${c.field}"` : '';
+        return `<td class="${c.cls}" ${dataAttrs}>${c.value ?? ""}</td>`;
+      }).join("");
+
       body.appendChild(tr);
     }
 
@@ -876,13 +964,14 @@
     el('task30-total')?.classList.add('is-hidden');
 
     // Canonical vendor mapping
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
       if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
+      if (s === "Other")       return "Other";
       return null;
     };
 
@@ -892,10 +981,10 @@
     function buildTable(kind){
       // kind: '60' or '30'
       const rows = [];
-      const grand = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0} };
+      const grand = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
       for (const sh of shifts){
         const group = raw[sh] || {};
-        const counts = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0} };
+        const counts = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
         for (const [vn, sg] of Object.entries(group)){
           const canon = toCanon(vn); if(!canon) continue;
           const staff = Object.values(sg || {});
@@ -1023,22 +1112,29 @@
         hour:"2-digit", minute:"2-digit", second:"2-digit"
       }).replace(",", "");
 
+      // Đảm bảo vendor_name không rỗng để tránh path Firebase bị lỗi
+      const vendorName = String(info.contractor || "").trim().toUpperCase() || "Other";
+
+      // Nếu scan bằng WFM trực tiếp (không có fullname từ vendor), dùng operator làm fullname
+      const isDirectWfm = !String(info.full_name || "").trim();
+      const fullnameValue = isDirectWfm
+        ? String(operator || "").trim().toUpperCase()
+        : String(info.full_name || "").trim().toUpperCase();
+
       const rec = {
         type:"in",
         wfm_code: staff_no.toUpperCase(),
-        fullname: (info.full_name || "").toUpperCase(),
-        vendor_name: (info.contractor || "").toUpperCase(),
+        fullname: fullnameValue,
+        vendor_name: vendorName,
         shift_in: shiftTime,
         date: todayKey(),
-        gender: (info.gender || "").toUpperCase(),
-        vendor_code: (info.staff_id || "").toUpperCase(),
-        birth_year: info.birth_year || "",
-        operator: operator.toUpperCase(),
-        wms_user_id,
+        gender: String(info.gender || "").trim().toUpperCase(),
+        vendor_code: String(info.staff_id || "").trim().toUpperCase(),
+        birth_year: String(info.birth_year || "").trim(),
+        operator: String(operator || "").trim().toUpperCase(),
+        wms_user_id: String(wms_user_id || "").trim(),
         gsheet_time_in
-      };
-
-      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, rec.vendor_name, staff_no.toUpperCase());
+      };      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, vendorName, staff_no.toUpperCase());
       console.log("[SCAN IN] Firebase path:", path);
       console.log("[SCAN IN] staff_no:", staff_no, "| vendor_code:", rec.vendor_code);
       await fetch(path, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(rec) });
@@ -1138,11 +1234,12 @@
 
       // 4) Ghi PATCH lên RTDB (ghi theo cấu trúc shift → vendor → wfm)
       const patch = {}; patch[field_name] = task_time;
+      const vendorNameForPath = (rec.vendor_name || "").trim() || "Other";
       const url = rtdbRecPath(
         wh,
         todayKey(),
         rec.shift_in || rec.shift || "",      // node ca
-        rec.vendor_name || "",                // node vendor
+        vendorNameForPath,                     // node vendor
         staff_no.toUpperCase()                // Dùng staff_no đã parse, chuyển uppercase
       );
       console.log("[TASK] Firebase path:", url);
@@ -1238,11 +1335,12 @@
       }).replace(",", "");
 
       const patch = { shift_out, gsheet_time_out, type:"done" };
+      const vendorNameForPath = (rec.vendor_name || "").trim() || "Other";
       const url = rtdbRecPath(
         wh,
         todayKey(),
         rec.shift_in || rec.shift,
-        rec.vendor_name || "",
+        vendorNameForPath,
         staff_no.toUpperCase()  // Dùng staff_no đã parse, chuyển uppercase
       );
       console.log("[SCAN OUT] Firebase path:", url);
@@ -1343,7 +1441,20 @@
     });
 
     // Reset filters button
-    el("btnResetFilters")?.addEventListener('click', resetAllFilters);    // Filter modal events
+    el("btnResetFilters")?.addEventListener('click', resetAllFilters);
+
+    // Edit Mode button
+    el("btnEditMode")?.addEventListener('click', toggleEditMode);
+
+    // Double-click to edit cells
+    el("tbody-dash")?.addEventListener('dblclick', (e)=>{
+      const td = e.target.closest('td');
+      if(!td || !td.classList.contains('editable')) return;
+      if(document.body.dataset.editMode !== "1") return;
+      makeCellEditable(td);
+    });
+
+    // Filter modal events
     el("filterCancel")?.addEventListener('click', hideFilterModal);
     el("filterModal")?.addEventListener('click', (e)=>{
       if(e.target === el("filterModal")) hideFilterModal();
@@ -1351,11 +1462,13 @@
     el("filterClear")?.addEventListener('click', clearCurrentFilter);
     el("filterApply")?.addEventListener('click', applyCurrentFilter);
     el("filterSearch")?.addEventListener('input', filterSearchOptions);
+
   }
 
   // Filter functionality
   let currentFilterColumn = null;
   let currentFilterValues = new Set();
+  let EDITING_ROW = null;
 
   function resetAllFilters() {
     // Clear all filters
@@ -1473,7 +1586,117 @@
     });
   }
 
-  function applyDashFiltersAndRender(){
+  function toggleEditMode(){
+    const current = document.body.dataset.editMode === "1";
+    const btn = el('btnEditMode');
+
+    if(!current){
+      // Enable edit mode
+      document.body.dataset.editMode = "1";
+      if(btn) {
+        btn.textContent = "View Mode";
+        btn.classList.add('active');
+      }
+      // notice("Chế độ chỉnh sửa đã BẬT. Double-click vào ô để chỉnh sửa.", "info", 4000);
+    } else {
+      // Disable edit mode
+      document.body.dataset.editMode = "0";
+      if(btn) {
+        btn.textContent = "Edit Mode";
+        btn.classList.remove('active');
+      }
+      // notice("Chế độ chỉnh sửa đã TẮT.", "info", 3000);
+    }
+
+    renderDashTable();
+  }
+
+  // Convert cell to editable on double-click
+  function makeCellEditable(td){
+    if(!td || !td.dataset.field) return;
+    if(td.getAttribute('contenteditable') === 'true') return; // Already editing
+
+    const idx = parseInt(td.dataset.idx || "0", 10);
+    const field = td.dataset.field;
+    const row = DASH.filtered[idx];
+    if(!row) return;
+
+    const currentValue = row[field] || '';
+    const originalText = td.textContent.trim();
+
+    // Make cell editable
+    td.contentEditable = 'true';
+    td.classList.add('editing');
+    td.focus();
+
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(td);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    // Save on blur or Enter
+    const save = async () => {
+      td.contentEditable = 'false';
+      td.classList.remove('editing');
+
+      const newValue = td.textContent.trim();
+      if(newValue === currentValue || newValue === originalText) {
+        // No change
+        td.textContent = originalText;
+        return;
+      }
+
+      const wh = el('warehouse')?.value || 'VNDB';
+      const dp = el('dayPicker');
+      const day = (dp?.value && /^\d{4}-\d{2}-\d{2}$/.test(dp.value)) ? dp.value : todayKey();
+      const shift = row.shift_in || row.shift || '';
+      const vendorName = row.vendor_name || '';
+      const wfm = (row.wfm_code || '').toUpperCase();
+
+      if(!wfm || !shift) {
+        notice("Không đủ thông tin để lưu", "error", 3000);
+        td.textContent = originalText;
+        return;
+      }
+
+      const patch = { [field]: newValue };
+
+      try{
+        const url = rtdbRecPath(wh, day, shift, vendorName, wfm);
+        await fetch(url, {
+          method: "PATCH",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify(patch)
+        });
+
+        row[field] = newValue;
+        td.textContent = newValue;
+        td.style.background = '#d4edda';
+        setTimeout(() => td.style.background = '', 800);
+      }catch(e){
+        console.error(e);
+        notice(`Lưu thất bại: ` + (e.message || e), "error", 4000);
+        td.textContent = originalText;
+      }
+    };
+
+    const onBlur = () => save();
+    const onKeydown = (e) => {
+      if(e.key === 'Enter') {
+        e.preventDefault();
+        td.blur();
+      } else if(e.key === 'Escape') {
+        td.contentEditable = 'false';
+        td.classList.remove('editing');
+        td.textContent = originalText;
+      }
+    };
+
+    td.addEventListener('blur', onBlur, {once: true});
+    td.addEventListener('keydown', onKeydown);
+  }  function applyDashFiltersAndRender(){
     const fs=DASH.filters||{};
     DASH.filtered = DASH.rows.filter(row=>{
       for(const [k,val] of Object.entries(fs)){

@@ -294,32 +294,59 @@ button {
 /* Notice luôn hiển thị - để trống */
 
 /* ========== Input Fields ========== */
-input,
+input {
+  background: #fff;
+  border: 0.5px solid;
+  color: #999;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 3px;
+  margin-right: 2px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  line-height: 1;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+  min-width: 16px;
+}
+
 input[type="text"],
 input[type="date"],
 input[type="number"],
 select {
-  padding: 8px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 16px;
-  height: 42px;
-  line-height: 1.2;
-  box-sizing: border-box;
-  display: inline-block;
-  vertical-align: middle;
+  background: #fff;
+  color: #050505;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 3px;
+  margin-right: 2px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  line-height: 1;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+  min-width: 16px;
 }
 
-input.big {
-  font-size: 20px;
-  padding: 10px 12px;
+.filter-btn:hover {
+  background: #ff8a00;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,138,0,0.15);
 }
 
-/* Input mã vận đơn dài hơn */
-#orderId, #deleteBox {
-  height: 42px;
-  min-width: 200px;
-  width: 350px;
+.filter-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,138,0,0.25);
+}
+
+.filter-btn.active {
+  background: #ff8a00;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,138,0,0.2);
 }
 
 label {
@@ -480,7 +507,7 @@ table td {
 }
 
 .is-hidden {
-  display: none !important;
+  display: none;
 }
 
 .task-grid {
@@ -684,22 +711,22 @@ table td {
   #reporting input,
   #controls button,
   #reporting button {
-    min-width: 0 !important;
+    min-width: 0;
     width: 100%;
   }
 
   #reporting {
-    margin-left: 0 !important;
+    margin-left: 0;
     flex-wrap: wrap;
-    gap: 8px !important;
+    gap: 8px;
   }
 
   .btn-action,
   .btn-report,
   .btn-toggle {
-    padding: 0px 10px !important;
-    font-size: 14px !important;
-    height: 36px !important;
+    padding: 0px 10px;
+    font-size: 14px;
+    height: 36px;
   }
 
   /* Input responsive cho mobile */
@@ -708,24 +735,24 @@ table td {
   input[type="date"],
   input[type="number"],
   select {
-    padding: 6px 10px !important;
-    font-size: 14px !important;
-    height: 36px !important;
-    line-height: 1.2 !important;
-    vertical-align: middle !important;
+    padding: 6px 10px;
+    font-size: 14px;
+    height: 36px;
+    line-height: 1.2;
+    vertical-align: middle;
   }
 
   #orderId, #deleteBox {
-    width: 130px !important;
-    min-width: 150px !important;
+    width: 180px;
+    min-width: 180px;
   }
 
   #tblScan th,
   #tblScan td,
   #tblCancel th,
   #tblCancel td {
-    font-size: 11px !important;
-    padding: 2px 4px !important;
+    font-size: 11px;
+    padding: 2px 4px;
   }
 
   /* Giảm độ rộng cột trên mobile nhưng vẫn tránh wrap */
@@ -733,35 +760,35 @@ table td {
   #tblScan td:nth-child(1),
   #tblCancel th:nth-child(1),
   #tblCancel td:nth-child(1) {
-    width: 35px !important; /* No. */
+    width: 35px; /* No. */
   }
 
   #tblScan th:nth-child(2),
   #tblScan td:nth-child(2),
   #tblCancel th:nth-child(2),
   #tblCancel td:nth-child(2) {
-    width: 140px !important; /* Mã Đơn */
+    width: 140px; /* Mã Đơn */
   }
 
   #tblScan th:nth-child(3),
   #tblScan td:nth-child(3),
   #tblCancel th:nth-child(3),
   #tblCancel td:nth-child(3) {
-    width: 110px !important; /* Scan Time */
+    width: 110px; /* Scan Time */
   }
 
   #tblScan th:nth-child(4),
   #tblScan td:nth-child(4),
   #tblCancel th:nth-child(4),
   #tblCancel td:nth-child(4) {
-    width: 70px !important; /* User */
+    width: 70px; /* User */
   }
 
   #tblScan th:nth-child(5),
   #tblScan td:nth-child(5),
   #tblCancel th:nth-child(5),
   #tblCancel td:nth-child(5) {
-    width: 60px !important; /* Cancel? */
+    width: 60px; /* Cancel? */
   }
 
   #cancelCountsHdr,
@@ -1145,8 +1172,8 @@ table td {
   #tblScan td,
   #tblCancel th,
   #tblCancel td {
-    font-size: 10px !important;
-    padding: 2px 3px !important;
+    font-size: 10px;
+    padding: 2px 3px;
   }
 
   #scanSection h3,
@@ -1264,7 +1291,7 @@ html.busy {
 }
 
 html.busy * {
-  cursor: progress !important;
+  cursor: progress;
 }
 
 /* Scan page specific grid layout */
@@ -1346,13 +1373,11 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 /* Auto-fit columns cho dashboard table */
-#tbl-dashboard th,
-#tbl-dashboard td {
+#tbl-dashboard th, #tbl-dashboard td {
   white-space: normal;
   word-wrap: break-word;
   padding: 4px 6px;
   border: 1px solid var(--border-color);
-  max-width: 150px;
   font-size: 14px; /* increased by ~2px */
   line-height: 1.3;
   vertical-align: middle;
@@ -1361,71 +1386,93 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 #tbl-dashboard th {
-  white-space: nowrap;
+  white-space: normal;
   padding: 6px 8px;
   background: #f8f9fa;
   font-weight: 600;
   text-align: center;
-  height: 36px;
+  min-height: 36px;
+  line-height: 1.3;
+  vertical-align: middle;
 }
 
 #tbl-dashboard {
-  table-layout: auto;
+  table-layout: fixed;
   width: 100%;
-  word-break: break-word;
-  font-size: 14px; /* increased by ~2px */
+  word-break: normal;
+  font-size: 13px;
 }
 
-/* Column widths cho dashboard */
+/* Column widths theo tỷ lệ màn hình - responsive và tự nhiên */
 #tbl-dashboard th:nth-child(1),  /* STT */
-#tbl-dashboard td:nth-child(1) { width: 40px; min-width: 40px; }
+#tbl-dashboard td:nth-child(1) { width:3%; }
 
-#tbl-dashboard th:nth-child(2),  /* Nhà Thầu */
-#tbl-dashboard td:nth-child(2) { width: 80px; min-width: 80px; }
+#tbl-dashboard th:nth-child(2),  /* ⏷ Nhà Thầu */
+#tbl-dashboard td:nth-child(2) { width: 8%; }
 
-#tbl-dashboard th:nth-child(3),  /* Mã Vendor */
-#tbl-dashboard td:nth-child(3) { width: 100px; min-width: 100px; }
+#tbl-dashboard th:nth-child(3),  /* ⏷ Mã Vendor */
+#tbl-dashboard td:nth-child(3) { width: 9%; }
 
-#tbl-dashboard th:nth-child(4),  /* Mã WFM */
-#tbl-dashboard td:nth-child(4) { width: 80px; min-width: 80px; }
+#tbl-dashboard th:nth-child(4),  /* ⏷ Mã WFM */
+#tbl-dashboard td:nth-child(4) { width: 8%; }
 
-#tbl-dashboard th:nth-child(5),  /* Mã WMS */
-#tbl-dashboard td:nth-child(5) { width: 80px; min-width: 80px; }
+#tbl-dashboard th:nth-child(5),  /* ⏷ Mã WMS */
+#tbl-dashboard td:nth-child(5) { width: 8%; }
 
-#tbl-dashboard th:nth-child(6),  /* Operator */
-#tbl-dashboard td:nth-child(6) { width: 120px; min-width: 120px; }
+#tbl-dashboard th:nth-child(6),  /* ⏷ Họ và Tên */
+#tbl-dashboard td:nth-child(6) { width: 18%; }
 
-#tbl-dashboard th:nth-child(7),  /* Họ và Tên */
-#tbl-dashboard td:nth-child(7) { width: 140px; min-width: 140px; }
+#tbl-dashboard th:nth-child(7),  /* ⏷ Giới tính */
+#tbl-dashboard td:nth-child(7) { width: 8%; }
 
-#tbl-dashboard th:nth-child(8),  /* Giới tính */
-#tbl-dashboard td:nth-child(8) { width: 80px; min-width: 80px; }
+#tbl-dashboard th:nth-child(8),  /* ⏷ Năm sinh */
+#tbl-dashboard td:nth-child(8) { width: 6%; }
 
-#tbl-dashboard th:nth-child(9),  /* Năm sinh */
-#tbl-dashboard td:nth-child(9) { width: 60px; min-width: 60px; }
+#tbl-dashboard th:nth-child(9),  /* ⏷ Shift In */
+#tbl-dashboard td:nth-child(9) { width: 6%; }
 
-#tbl-dashboard th:nth-child(10), /* Time in */
-#tbl-dashboard td:nth-child(10) { width: 100px; min-width: 100px; }
+#tbl-dashboard th:nth-child(10), /* ⏷ Nghỉ Trưa */
+#tbl-dashboard td:nth-child(10) { width: 8%; }
 
-/* utility column classes for dashboard */
-.tbl-col-fullname{ width:280px; min-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tbl-col-gender{ width:130px; min-width:80px; text-align:center; white-space:nowrap; }
+#tbl-dashboard th:nth-child(11), /* ⏷ Vào Ca Trưa */
+#tbl-dashboard td:nth-child(11) { width: 8%; }
 
+#tbl-dashboard th:nth-child(12), /* ⏷ Nghỉ OT */
+#tbl-dashboard td:nth-child(12) { width: 8%; }
 
-#tbl-dashboard th:nth-child(11), /* Nghỉ Trưa */
-#tbl-dashboard td:nth-child(11) { width: 100px; min-width: 100px; }
+#tbl-dashboard th:nth-child(13), /* ⏷ Vào Ca OT */
+#tbl-dashboard td:nth-child(13) { width: 8%; }
 
-#tbl-dashboard th:nth-child(12), /* Vào Ca Trưa */
-#tbl-dashboard td:nth-child(12) { width: 100px; min-width: 100px; }
+#tbl-dashboard th:nth-child(14), /* ⏷ Shift Out */
+#tbl-dashboard td:nth-child(14) { width: 6%; }
 
-#tbl-dashboard th:nth-child(13), /* Nghỉ OT */
-#tbl-dashboard td:nth-child(13) { width: 100px; min-width: 100px; }
+/* utility column classes cho các cột đặc biệt */
+.tbl-col-fullname{
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tbl-col-gender{
+  text-align: center;
+}
 
-#tbl-dashboard th:nth-child(14), /* Vào Ca OT */
-#tbl-dashboard td:nth-child(14) { width: 100px; min-width: 100px; }
+/* Allow wrapping in headers to show filter buttons */
+#tbl-dashboard th.tbl-col-fullname,
+#tbl-dashboard th.tbl-col-gender {
+  white-space: normal;
+  overflow: visible;
+}
 
-#tbl-dashboard th:nth-child(15), /* Time Out */
-#tbl-dashboard td:nth-child(15) { width: 100px; min-width: 100px; }
+/* Keep nowrap only for td cells cần hạn chế */
+#tbl-dashboard td.tbl-col-fullname {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#tbl-dashboard td.tbl-col-gender {
+  white-space: nowrap;
+}
+
 
 /* Responsive dashboard table */
 @media (max-width: 768px) {
@@ -1435,9 +1482,9 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 
   #tbl-dashboard th,
   #tbl-dashboard td {
-    padding: 2px 3px;
-    min-width: 60px;
-    font-size: 11px;
+    padding: 4px;
+    min-width: 50px;
+    font-size: 10px;
     line-height: 1.2;
     text-align: center;
     vertical-align: middle;
@@ -1449,29 +1496,39 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   }
 }
 
-/* Filter buttons giống Excel */
+/* Filter buttons giống Excel - nổi bật hơn */
 .filter-btn {
-  background: none;
-  border: none;
-  color: #666;
+  background: #fff;
+  border: 1px solid #ff8a00;
+  color: #ff8a00;
   font-size: 10px;
   cursor: pointer;
-  padding: 2px 4px;
-  margin-left: 6px;
-  border-radius: 2px;
-  display: inline-block;
-  vertical-align: middle;
-  transition: all 0.2s ease;
+  padding: 0 4px;
+  margin-right: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+  min-width: 16px;
 }
 
 .filter-btn:hover {
-  background: #f5f5f5;
-  color: #ff8a00;
+  background: #ff8a00;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,138,0,0.15);
+}
+
+.filter-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,138,0,0.25);
 }
 
 .filter-btn.active {
   background: #ff8a00;
-  color: white;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,138,0,0.2);
 }
 
 /* Filter modal */
@@ -1574,7 +1631,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 .filter-actions button:hover {
-  background: #f5f5f5;
+  background: #000000;
   border-color: #ff8a00;
   color: #ff8a00;
 }
@@ -1602,14 +1659,13 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tbl-dashboard th {
   position: relative;
   text-align: center;
-  white-space: nowrap;
-  display: table-cell;
-  vertical-align: middle;
 }
 
 #tbl-dashboard th .filter-btn {
-  margin-left: 4px;
+  margin-right: 4px;
+  margin-left: 0;
   vertical-align: middle;
+  display: inline-block;
 }
 
 /* Tab buttons styling */
@@ -1746,7 +1802,7 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 
 /* Page display styling */
 #scanPageDisplay, #cancelPageDisplay {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #495057;
   padding: 0 8px;
@@ -1761,46 +1817,91 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
   justify-content: center;
 }
 
-/* ========== Dashboard Spacing Override (Final) ========== */
-.table-wrap .title {
-  margin-bottom: 20px !important;
-}
+/* ========== Dashboard Spacing (balanced) ========== */
+.table-wrap .title { margin-bottom: 20px; }
+.table-wrap .table-container { margin-top: 0; }
+#tab-dash .table-wrap .title { margin-bottom: 24px; }
 
-.table-wrap .table-container {
-  margin-top: 0 !important;
-}
-
-#tab-dash .table-wrap .title {
-  margin-bottom: 24px !important;
-}
-
-/* Strong override for fullname and gender columns to ensure classes win over nth-child rules */
-/* Placed at end of file to increase specificity and avoid inline styles. */
+/* Keep class-based behaviors lightweight; widths are managed above */
 #tbl-dashboard th.tbl-col-fullname,
-#tbl-dashboard td.tbl-col-fullname {
-  width: 300px !important;
-  min-width: 180px !important;
-  max-width: 520px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  text-align: center !important;
-}
-
+#tbl-dashboard td.tbl-col-fullname { overflow: hidden; text-overflow: ellipsis; }
 #tbl-dashboard th.tbl-col-gender,
-#tbl-dashboard td.tbl-col-gender {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 90px !important;
-  text-align: center !important;
-  white-space: nowrap !important;
+#tbl-dashboard td.tbl-col-gender { text-align: center; }
+
+/* ========== Dashboard Edit Mode - Double-Click Inline Editing ========== */
+/* Keep layout default; only ensure full width */
+#tbl-dashboard { width: 100%; }
+
+/* Editable cells cursor indicator */
+body[data-editmode="1"] td.editable {
+  cursor: pointer;
+  position: relative;
 }
 
-/* If the table uses nth-child rules elsewhere, ensure these classes still apply */
-#tbl-dashboard th.tbl-col-fullname:nth-child(7),
-#tbl-dashboard td.tbl-col-fullname:nth-child(7) { width: 300px !important; }
-#tbl-dashboard th.tbl-col-gender:nth-child(8),
-#tbl-dashboard td.tbl-col-gender:nth-child(8) { width: 60px !important; }
+body[data-editmode="1"] td.editable:hover {
+  background: #f8f9fa;
+  outline: 1px dashed #ff8a00;
+}
 
+/* Cell being edited with contentEditable */
+td.editing {
+  background: #fffef7;
+  outline: 2px solid #ff8a00;
+  outline-offset: -2px;
+}
 
+td.editing:focus {
+  outline: 2px solid #ff6f00;
+  box-shadow: 0 0 4px rgba(255, 138, 0, 0.3);
+}
 
+/* Edit Mode button styling */
+#btnEditMode.btn-action {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+#btnEditMode.btn-action:hover:not(.active):not(:disabled) {
+  background: #ff8a00;
+  border-color: #ff8a00;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Active state when in edit mode - green color */
+#btnEditMode.btn-action.active {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+#btnEditMode.btn-action.active:hover {
+  background: #218838;
+  border-color: #1e7e34;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#btnEditMode.btn-action:disabled {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+#btnEditMode.btn-action:disabled:hover {
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+  transform: none;
+  box-shadow: none;
+}
