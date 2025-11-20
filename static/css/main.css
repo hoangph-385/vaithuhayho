@@ -427,6 +427,10 @@ table td {
 .kpi {
   text-align: center;
   font-weight: 800;
+  font-family: "Segoe UI", Tahoma, "Noto Sans", sans-serif;
+  font-size: 22px;
+  color: #0031b8;
+  line-height: 1.4;
 }
 
 .muted {

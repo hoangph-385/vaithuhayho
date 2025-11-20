@@ -716,8 +716,8 @@
       // Handle bOther GRG and GRGR
       if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
-      if (s === "Other")       return "Other";
-      return null; // ignore Otherers in this table
+      // All other vendors go to "Other" category
+      return "Other";
     };
 
     // Build per-shift rows
@@ -730,7 +730,6 @@
       const counts = { Agari:0, MBB:0, GRG:0, HTVN:0, Other:0 };
       for (const [vn, sg] of Object.entries(group)) {
         const canon = toCanon(vn);
-        if (!canon) continue;
         counts[canon] += Object.keys(sg || {}).length;
       }
       grand.Agari += counts.Agari;
@@ -775,8 +774,8 @@
       if (s.includes("MBB"))   return "MBB";
       if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
-      if (s === "Other")       return "Other";
-      return null;
+      // All other vendors go to "Other" category
+      return "Other";
     };
 
     const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
@@ -789,7 +788,6 @@
       const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, Other:{in:0,out:0} };
       for(const [vn, sg] of Object.entries(group)){
         const canon = toCanon(vn);
-        if(!canon) continue;
         const staff = Object.values(sg || {});
         const inN   = staff.length;
         const outN  = staff.filter(s => s && (s.gsheet_time_out || s.type === "done")).length;
