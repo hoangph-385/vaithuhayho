@@ -735,7 +735,8 @@
     }
 
     // Combined: Gender by User Type
-    let oldMale = 0, oldFemale = 0, newMale = 0, newFemale = 0;
+    let oldMale = 0, oldFemale = 0, oldUnknown = 0;
+    let newMale = 0, newFemale = 0, newUnknown = 0;
     for (const r of records) {
       const isMale = (r.gender === 'NAM');
       const isFemale = (r.gender === 'NỮ');
@@ -744,9 +745,11 @@
       if (isOld) {
         if (isMale) oldMale++;
         else if (isFemale) oldFemale++;
+        else oldUnknown++;
       } else {
         if (isMale) newMale++;
         else if (isFemale) newFemale++;
+        else newUnknown++;
       }
     }
 
@@ -762,21 +765,28 @@
       newCount,
       oldMale,
       oldFemale,
+      oldUnknown,
       newMale,
       newFemale,
+      newUnknown,
       records: records.map(r => ({ wfm: r.wfm_code, gender: r.gender, freq: r.frequency }))
     });
 
+    // Calculate percentages based on normalized gender only (exclude unknown)
+    const genderNormalized = maleCount + femaleCount;
+    const oldNormalized = oldMale + oldFemale;
+    const newNormalized = newMale + newFemale;
+
     return {
       total,
-      male: { count: maleCount, pct: pct(maleCount, total) },
-      female: { count: femaleCount, pct: pct(femaleCount, total) },
+      male: { count: maleCount, pct: pct(maleCount, genderNormalized) },
+      female: { count: femaleCount, pct: pct(femaleCount, genderNormalized) },
       old: { count: oldCount, pct: pct(oldCount, total) },
       new: { count: newCount, pct: pct(newCount, total) },
-      oldMale: { count: oldMale, pct: pct(oldMale, oldCount) },
-      oldFemale: { count: oldFemale, pct: pct(oldFemale, oldCount) },
-      newMale: { count: newMale, pct: pct(newMale, newCount) },
-      newFemale: { count: newFemale, pct: pct(newFemale, newCount) }
+      oldMale: { count: oldMale, pct: pct(oldMale, oldNormalized) },
+      oldFemale: { count: oldFemale, pct: pct(oldFemale, oldNormalized) },
+      newMale: { count: newMale, pct: pct(newMale, newNormalized) },
+      newFemale: { count: newFemale, pct: pct(newFemale, newNormalized) }
     };
   }
 
@@ -2189,30 +2199,74 @@
       const wh = el('warehouse')?.value || 'VNDB';
       const dp = el('dayPicker');
       const day = (dp?.value && /^\d{4}-\d{2}-\d{2}$/.test(dp.value)) ? dp.value : todayKey();
-      const shift = row.shift_in || row.shift || '';
+      const oldShift = row.shift_in || row.shift || '';
       const vendorName = row.vendor_name || '';
       const wfm = (row.wfm_code || '').toUpperCase();
 
-      if(!wfm || !shift) {
+      if(!wfm || !oldShift) {
         notice("Không đủ thông tin để lưu", "error", 3000);
         td.textContent = originalText;
         return;
       }
 
-      const patch = { [field]: newValue };
-
       try{
-        const url = rtdbRecPath(wh, day, shift, vendorName, wfm);
-        await fetch(url, {
-          method: "PATCH",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify(patch)
-        });
+        // Special handling for shift_in: move record to new shift node
+        if(field === 'shift_in') {
+          const newShift = newValue.trim();
+          if(!newShift || !/^\d{1,2}:\d{2}$/.test(newShift)) {
+            notice("Shift phải theo định dạng HH:MM (vd: 10:30)", "error", 3000);
+            td.textContent = originalText;
+            return;
+          }
 
-        row[field] = newValue;
-        td.textContent = newValue;
-        td.style.background = '#d4edda';
-        setTimeout(() => td.style.background = '', 800);
+          // 1. Fetch current record from old shift node
+          const oldUrl = rtdbRecPath(wh, day, oldShift, vendorName, wfm);
+          const getResp = await fetch(oldUrl);
+          const currentRecord = await getResp.json();
+
+          if(!currentRecord) {
+            notice("Không tìm thấy record để di chuyển", "error", 3000);
+            td.textContent = originalText;
+            return;
+          }
+
+          // 2. Create updated record with new shift_in
+          const updatedRecord = { ...currentRecord, shift_in: newShift };
+
+          // 3. Write to new shift node
+          const newUrl = rtdbRecPath(wh, day, newShift, vendorName, wfm);
+          await fetch(newUrl, {
+            method: "PUT",
+            headers: { "Content-Type":"application/json" },
+            body: JSON.stringify(updatedRecord)
+          });
+
+          // 4. Delete from old shift node
+          await fetch(oldUrl, { method: "DELETE" });
+
+          // 5. Update local row data
+          row.shift_in = newShift;
+          row.shift = newShift;
+          td.textContent = newShift;
+          td.style.background = '#d4edda';
+          setTimeout(() => td.style.background = '', 800);
+
+          notice("✅ Đã di chuyển record sang ca mới", "success", 3000);
+        } else {
+          // Normal field update: just PATCH
+          const patch = { [field]: newValue };
+          const url = rtdbRecPath(wh, day, oldShift, vendorName, wfm);
+          await fetch(url, {
+            method: "PATCH",
+            headers: { "Content-Type":"application/json" },
+            body: JSON.stringify(patch)
+          });
+
+          row[field] = newValue;
+          td.textContent = newValue;
+          td.style.background = '#d4edda';
+          setTimeout(() => td.style.background = '', 800);
+        }
       }catch(e){
         console.error(e);
         notice(`Lưu thất bại: ` + (e.message || e), "error", 4000);

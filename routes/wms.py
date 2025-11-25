@@ -439,7 +439,10 @@ def verify_scan():
     staff_no   = (data.get('staff_no') or '').strip()
 
     try:
-        if vendor_url:
+        # Skip vendor_url check if it's a direct WFM code (Sxxxxxx)
+        is_wfm_code = bool(re.match(r'^S\d{6}$', vendor_url, re.IGNORECASE))
+
+        if vendor_url and not is_wfm_code:
             vc = _to_vendor_code(vendor_url)
             if vc:
                 headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/html,application/json"}
@@ -463,6 +466,10 @@ def verify_scan():
                 else:
                     nd = _extract_next_data(r.text)
                     all_info = (nd.get('props') or {}).get('pageProps', {}).get('all_info', {}) if nd else {}
+
+                # Ensure all_info is a dict (not None)
+                if all_info is None:
+                    all_info = {}
 
                 picked = _pick_staff_no_from_info({'all_info': all_info})
                 if picked or all_info.get('full_name') or all_info.get('vendor'):
