@@ -8,17 +8,20 @@ import sys
 import logging
 import hashlib
 import socket
-from flask import Flask, request, jsonify, render_template, url_for
+from flask import Flask, request, jsonify, render_template, url_for, session, redirect
 from waitress import serve
+from functools import wraps
 
 # Import các module con
 from utils.firebase_config import ensure_firebase
 from routes.wms import bp as wms_bp
 from routes.report import bp as report_bp
 from routes.sdd import bp as sdd_bp
+import config
 
 # ───── Setup Flask ─────
 app = Flask(__name__, static_folder="static")
+app.secret_key = config.SESSION_SECRET_KEY
 
 # Tắt Werkzeug logging để tránh trùng lặp
 import logging
@@ -31,7 +34,7 @@ app.register_blueprint(report_bp, url_prefix='/api/report')
 app.register_blueprint(sdd_bp, url_prefix='/api/report')
 
 # ───── Constants ─────
-PUBLIC_PATHS = {"/", "/scan", "/handover", "/sdd"}
+PUBLIC_PATHS = {"/login"}  # Only login page is public
 
 # ───── Setup Flask & Logging ─────
 import logging, logging.config
@@ -77,6 +80,48 @@ logging.config.dictConfig({
 app.logger.propagate = True                      # đẩy log của app lên root
 logging.getLogger("waitress").setLevel(LOG_LEVEL)
 
+# ───── Authentication ─────
+SESSION_VERSION = "v3_new_update"  # Change this to invalidate all old sessions
+
+def login_required(f):
+    """Decorator to require login for routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session is valid and has correct version
+        if not session.get('authenticated') or session.get('version') != SESSION_VERSION:
+            session.clear()  # Clear invalid/old session
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Login page"""
+    if request.method == "POST":
+        password = request.form.get('password', '')
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        if password_hash == config.AUTH_PASSWORD_HASH:
+            session.clear()  # Clear any old data
+            session['authenticated'] = True
+            session['version'] = SESSION_VERSION  # Mark session with current version
+            session.permanent = True
+            app.logger.info("[AUTH] User logged in from %s", request.remote_addr)
+            return redirect(url_for('home'))
+        else:
+            app.logger.warning("[AUTH] Failed login attempt from %s", request.remote_addr)
+            return redirect(url_for('login', error=1))
+
+    # GET request - show login page
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    """Logout and clear session"""
+    session.clear()
+    app.logger.info("[AUTH] User logged out from %s", request.remote_addr)
+    return redirect(url_for('login'))
+
 # (Tuỳ chọn) log mỗi request đơn giản
 @app.after_request
 def _log_response(response):
@@ -112,21 +157,25 @@ def _on_exit():
 
 # ───── Routes ─────
 @app.route("/")
+@login_required
 def home():
     """Home page"""
     return render_template("home.html")
 
 @app.route("/scan")
+@login_required
 def scan():
     """Scan Tool page"""
     return render_template("tool_scan.html")
 
 @app.route("/handover")
+@login_required
 def handover():
     """Handover Tool page"""
     return render_template("tool_handover.html")
 
 @app.route("/sdd")
+@login_required
 def sdd():
     """SDD Tool page"""
     return render_template("tool_sdd.html")

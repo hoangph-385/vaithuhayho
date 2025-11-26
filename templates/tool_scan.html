@@ -1946,8 +1946,8 @@
       const tabName = btn.dataset.tab;
       setActiveTab(tabName);
 
-      // Auto-load analytics when switching to analyze tab
-      if (tabName === 'analyze' && !ANALYZE.stats) {
+      // Auto-load analytics when switching to analyze tab (always reload)
+      if (tabName === 'analyze') {
         loadAnalytics();
       }
     });
@@ -2250,6 +2250,9 @@
           td.textContent = newShift;
           td.style.background = '#d4edda';
           setTimeout(() => td.style.background = '', 800);
+
+          // 6. Re-sort and re-render dashboard to reflect new shift order
+          applyDashFiltersAndRender();
 
           notice("✅ Đã di chuyển record sang ca mới", "success", 3000);
         } else {
