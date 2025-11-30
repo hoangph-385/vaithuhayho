@@ -83,16 +83,39 @@ logging.getLogger("waitress").setLevel(LOG_LEVEL)
 # ───── Authentication ─────
 SESSION_VERSION = "v3_new_update"  # Change this to invalidate all old sessions
 
-def login_required(f):
-    """Decorator to require login for routes"""
+# Public paths that don't require authentication
+PUBLIC_ENDPOINTS = {'login', 'logout', 'static'}
+
+@app.before_request
+def check_session_validity():
+    """Check session validity if user is authenticated"""
+    # Skip check for public endpoints
+    endpoint = request.endpoint
+    if not endpoint or endpoint in PUBLIC_ENDPOINTS:
+        return None
+
+    # Only validate session version if user claims to be authenticated
+    if 'authenticated' in session and session.get('version') != SESSION_VERSION:
+        session.clear()
+        app.logger.info("[AUTH] Cleared old session from %s", request.remote_addr)
+
+    return None
+
+def action_required(f):
+    """Decorator to require authentication for actions (scan, edit, etc.)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if session is valid and has correct version
-        if not session.get('authenticated') or session.get('version') != SESSION_VERSION:
-            session.clear()  # Clear invalid/old session
-            return redirect(url_for('login'))
+        if not session.get('authenticated'):
+            if request.is_json or request.path.startswith(('/wms', '/api')):
+                return jsonify({'error': 'Authentication required', 'message': 'Vui lòng đăng nhập để thực hiện thao tác này'}), 401
+            return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+@app.context_processor
+def inject_auth_status():
+    """Make auth status available to all templates"""
+    return {'is_authenticated': session.get('authenticated', False)}
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -107,20 +130,24 @@ def login():
             session['version'] = SESSION_VERSION  # Mark session with current version
             session.permanent = True
             app.logger.info("[AUTH] User logged in from %s", request.remote_addr)
-            return redirect(url_for('home'))
+
+            # Redirect back to previous page or home
+            next_page = request.args.get('next') or request.form.get('next') or url_for('home')
+            return redirect(next_page)
         else:
             app.logger.warning("[AUTH] Failed login attempt from %s", request.remote_addr)
-            return redirect(url_for('login', error=1))
+            return redirect(url_for('login', error=1, next=request.args.get('next', '')))
 
     # GET request - show login page
-    return render_template("login.html")
+    next_page = request.args.get('next', '')
+    return render_template("login.html", next_page=next_page)
 
 @app.route("/logout")
 def logout():
     """Logout and clear session"""
     session.clear()
     app.logger.info("[AUTH] User logged out from %s", request.remote_addr)
-    return redirect(url_for('login'))
+    return redirect(url_for('home'))
 
 # (Tuỳ chọn) log mỗi request đơn giản
 @app.after_request
@@ -157,25 +184,21 @@ def _on_exit():
 
 # ───── Routes ─────
 @app.route("/")
-@login_required
 def home():
     """Home page"""
     return render_template("home.html")
 
 @app.route("/scan")
-@login_required
 def scan():
     """Scan Tool page"""
     return render_template("tool_scan.html")
 
 @app.route("/handover")
-@login_required
 def handover():
     """Handover Tool page"""
     return render_template("tool_handover.html")
 
 @app.route("/sdd")
-@login_required
 def sdd():
     """SDD Tool page"""
     return render_template("tool_sdd.html")

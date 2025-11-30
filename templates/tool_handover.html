@@ -1153,6 +1153,81 @@ get(ref(db, `/${today()}`)).then(s => console.log("[SNAP today]", today(), s.exi
 .catch(err => console.error("[SNAP today] error", err));
 </script>
 
+<!-- ========================== View-Only Mode Handler ========================== -->
+<script>
+(function() {
+  "use strict";
+
+  // Check if user is authenticated (passed from backend via template)
+  const isAuthenticated = {{ 'true' if is_authenticated else 'false' }};
+
+  function applyViewOnlyMode() {
+    if (isAuthenticated) return;
+
+    console.log('[VIEW-ONLY] Disabling all action controls');
+
+    // Disable all input fields
+    const inputs = ['userName', 'orderId', 'deleteBox'];
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.disabled = true;
+        el.readOnly = true;
+        el.style.opacity = '0.6';
+        el.style.cursor = 'not-allowed';
+        el.style.pointerEvents = 'none';
+        el.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+
+        el.addEventListener('keydown', (e) => e.preventDefault(), true);
+        el.addEventListener('keypress', (e) => e.preventDefault(), true);
+        el.addEventListener('input', (e) => e.preventDefault(), true);
+        el.addEventListener('focus', (e) => e.blur(), true);
+      }
+    });
+
+    // Disable all buttons
+    const buttons = ['btnNextBatch', 'btnReport', 'btnDelete'];
+    buttons.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        btn.style.pointerEvents = 'none';
+        btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+      }
+    });
+
+    // Disable channel toggle buttons
+    document.querySelectorAll('.btn-toggle').forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
+      btn.style.pointerEvents = 'none';
+      btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+    });
+
+    // Show view-only notice
+    const notice = document.getElementById('notice');
+    if (notice) {
+      notice.textContent = '⚠ Chế độ chỉ xem - Vui lòng đăng nhập để thực hiện thao tác';
+      notice.className = 'notice warning';
+      notice.style.display = 'block';
+      notice.style.opacity = '1';
+    }
+  }
+
+  // Apply on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyViewOnlyMode);
+  } else {
+    applyViewOnlyMode();
+  }
+
+  setTimeout(applyViewOnlyMode, 500);
+})();
+</script>
+
 <!-- SheetJS for Excel export -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 

@@ -212,7 +212,6 @@
                  style="width: 60px; padding: 4px 8px; text-align: center;"
                  title="User cũ khi xuất hiện trên N lần trong database">
           <span style="font-size: 13px; color: #666;">lần</span>
-          <button id="btnMigrateGender" class="btn-action is-hidden" title="Chuẩn hóa giới tính trong database" style="background: #ff6b6b; color: white;">Migrate Data</button>
           <button id="btnRefreshAnalyze" class="btn-action is-hidden" title="Làm mới phân tích">Refresh</button>
         </div>
       </div>
@@ -673,16 +672,15 @@
 
   // Normalize gender to either "NAM" or "NỮ"
   function normalizeGender(genderInput) {
-    const g = String(genderInput || '').toUpperCase().trim();
+    const g = String(genderInput || '').trim().toUpperCase().normalize("NFC");
 
     // Male variations
-    if (g === 'NAM' || g === 'MALE' || g === 'M' || g === 'BOY' || g === 'MAN') {
+    if (['NAM', 'MALE', 'M', 'BOY', 'MAN'].includes(g)) {
       return 'NAM';
     }
 
     // Female variations - handle Unicode normalization
-    if (g === 'NỮ' || g === 'NU' || g === 'NƯ' ||
-        g === 'FEMALE' || g === 'F' || g === 'GIRL' || g === 'WOMAN') {
+    if (['NỮ', 'NU', 'NƯ', 'FEMALE', 'F', 'GIRL', 'WOMAN'].includes(g)) {
       return 'NỮ';
     }
 
@@ -990,77 +988,6 @@
     } catch (e) {
       console.error('[loadAnalytics]', e);
       notice('Lỗi khi tải dữ liệu phân tích: ' + (e.message || e), 'error', 5000);
-      playSysErr();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function migrateGenderData(){
-    if (!confirm('⚠️ CẢNH BÁO: Thao tác này sẽ chuẩn hóa TẤT CẢ giá trị giới tính trong database VNDB.\n\nTất cả các giá trị sẽ được chuyển thành "NAM" hoặc "NỮ".\n\nBạn có chắc chắn muốn tiếp tục?')) {
-      return;
-    }
-
-    try {
-      setBusy(true);
-      notice('Đang migrate dữ liệu... Vui lòng đợi!', 'info', 0);
-
-      // Fetch all data
-      const allData = await fetchAllVNDBData();
-      let totalRecords = 0;
-      let updatedRecords = 0;
-      const errors = [];
-
-      // Process each date
-      for (const [date, dateData] of Object.entries(allData || {})) {
-        for (const [shift, shiftData] of Object.entries(dateData || {})) {
-          for (const [vendor, vendorData] of Object.entries(shiftData || {})) {
-            for (const [wfmCode, record] of Object.entries(vendorData || {})) {
-              totalRecords++;
-
-              if (!record || !record.gender) continue;
-
-              const originalGender = record.gender;
-              const normalizedGender = normalizeGender(record.gender);
-
-              // Only update if gender changed
-              if (normalizedGender && normalizedGender !== originalGender) {
-                try {
-                  const url = `https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app/VNDB/${date}/${shift}/${vendor}/${wfmCode}/gender.json`;
-                  const response = await fetch(url, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(normalizedGender)
-                  });
-
-                  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                  updatedRecords++;
-                  console.log(`[Migrate] ${wfmCode}: "${originalGender}" → "${normalizedGender}"`);
-                } catch (err) {
-                  errors.push(`${date}/${shift}/${vendor}/${wfmCode}: ${err.message}`);
-                  console.error('[Migrate Error]', err);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (errors.length > 0) {
-        console.error('[Migration Errors]', errors);
-        notice(`Migration hoàn tất với ${errors.length} lỗi. Đã update ${updatedRecords}/${totalRecords} records. Check console.`, 'warning', 10000);
-      } else {
-        notice(`✅ Migration thành công! Đã chuẩn hóa ${updatedRecords}/${totalRecords} records.`, 'success', 8000);
-        playSysOk();
-      }
-
-      // Refresh analytics after migration
-      await loadAnalytics();
-
-    } catch (e) {
-      console.error('[migrateGenderData]', e);
-      notice('Lỗi khi migrate dữ liệu: ' + (e.message || e), 'error', 8000);
       playSysErr();
     } finally {
       setBusy(false);
@@ -1377,7 +1304,7 @@
       wms_user_id:     safe(r.wms_user_id),
       operator:        safe(r.operator).toUpperCase(),
       fullname:        safe(r.fullname || r.full_name).toUpperCase(),
-      gender:          normalizeGender(r.gender) || safe(r.gender).toUpperCase(), // Normalize gender
+      gender:          normalizeGender(r.gender) || safe(r.gender).toUpperCase().normalize("NFC"), // Normalize gender
       shift_in:        safe(r.shift_in || r.shift),
       shift_out:       safe(r.shift_out),
       birth_year:      safe(r.birth_year),
@@ -1981,9 +1908,6 @@
     // Refresh analytics button
     el("btnRefreshAnalyze")?.addEventListener('click', loadAnalytics);
 
-    // Migrate gender data button
-    el("btnMigrateGender")?.addEventListener('click', migrateGenderData);
-
     // Threshold input change
     el("analyze-threshold")?.addEventListener('change', function() {
       if (ANALYZE.currentData && ANALYZE.allData) {
@@ -2389,6 +2313,123 @@
   });
 
 
+})();
+</script>
+
+<!-- ========================== View-Only Mode Handler ========================== -->
+<script>
+(function() {
+  "use strict";
+
+  // Check if user is authenticated (passed from backend via template)
+  const isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}" === "true";
+
+  function applyViewOnlyMode() {
+    if (isAuthenticated) return;
+
+    console.log('[VIEW-ONLY] Disabling all action controls');
+
+    // Disable all input fields for actions
+    const actionInputs = [
+      'in-wfm', 'out-wfm', 'task-wfm',
+      'dayPicker', 'hour', 'minute', 'warehouse',
+      'task-type', 'analyze-threshold'
+    ];
+
+    actionInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.disabled = true;
+        el.readOnly = true;
+        el.style.opacity = '0.6';
+        el.style.cursor = 'not-allowed';
+        el.style.pointerEvents = 'none';
+        el.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+
+        // Prevent all input events
+        el.addEventListener('keydown', (e) => e.preventDefault(), true);
+        el.addEventListener('keypress', (e) => e.preventDefault(), true);
+        el.addEventListener('input', (e) => e.preventDefault(), true);
+        el.addEventListener('change', (e) => e.preventDefault(), true);
+        el.addEventListener('focus', (e) => e.blur(), true);
+      }
+    });
+
+    // Disable all action buttons
+    const actionButtons = [
+      'btnScanIn', 'btnScanOut', 'btnScanTask',
+      'btnEditMode', 'btnExportXlsx', 'btnResetFilters',
+      'btnRefreshAnalyze'
+    ];
+
+    actionButtons.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        btn.style.pointerEvents = 'none';
+        btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+      }
+    });
+
+    // Disable filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
+      btn.style.pointerEvents = 'none';
+      btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+    });
+
+    // Show view-only notice
+    const notice = document.getElementById('notice');
+    if (notice) {
+      notice.textContent = '⚠ Chế độ chỉ xem - Vui lòng đăng nhập để thực hiện thao tác';
+      notice.dataset.kind = 'warning';
+      notice.style.opacity = '1';
+    }
+
+    // Override action functions to show login prompt
+    const showLoginPrompt = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (confirm('Bạn cần đăng nhập để sử dụng chức năng này.\n\nĐăng nhập ngay?')) {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      }
+      return false;
+    };
+
+    // Override scan functions globally
+    if (typeof window.doScan === 'function') {
+      window.doScan = showLoginPrompt;
+    }
+
+    // Prevent edit mode on dashboard
+    const tbody = document.getElementById('tbody-dash');
+    if (tbody) {
+      tbody.addEventListener('dblclick', showLoginPrompt, true);
+      tbody.addEventListener('click', (e) => {
+        const td = e.target.closest('td');
+        if (td && td.classList.contains('editable')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    }
+  }
+
+  // Apply immediately if DOM ready, otherwise wait
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyViewOnlyMode);
+  } else {
+    applyViewOnlyMode();
+  }
+
+  // Also apply after a short delay to catch any late-rendered elements
+  setTimeout(applyViewOnlyMode, 500);
 })();
 </script>
 

@@ -127,6 +127,7 @@
         </div>
 
         <form id="loginForm" method="POST" action="/login">
+            <input type="hidden" name="next" value="{{ next_page }}">
             <div class="form-group">
                 <label for="password">Mật khẩu</label>
                 <input type="password" id="password" name="password"

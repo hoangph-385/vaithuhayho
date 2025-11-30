@@ -1,11 +1,12 @@
 # routes/wms.py - FIXED VERSION WITH TIMEOUT & DISCONNECT HANDLING
 # -*- coding: utf-8 -*-
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, session
 from werkzeug.exceptions import ClientDisconnected
 import requests, json, urllib.request, uuid, traceback
 from urllib.parse import urlparse
 import re, html as htmllib
 import os, sys, time
+from functools import wraps
 
 # ==== import utility (dùng header chuẩn đã chạy OK ở script cũ) ====
 def build_api_headers(cookie: str | None = None):
@@ -235,6 +236,20 @@ def info_staff_get(vendor_code):
     _log("INFO parsed", staff_no=staff_no, full_name=result["full_name"])
     return jsonify(result)
 
+# ==== Authentication decorator ====
+def action_required(f):
+    """Require authentication for action endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('authenticated'):
+            return jsonify({
+                'retcode': 401,
+                'error': 'Authentication required',
+                'message': 'Vui lòng đăng nhập để thực hiện thao tác này'
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 @bp.route("/info", methods=["POST", "OPTIONS"])
 def info_staff_post():
     if request.method == "OPTIONS":
@@ -249,6 +264,7 @@ def info_staff_post():
 
 # ===================== ATTENDANCE =====================
 @bp.route("/attendance", methods=["POST", "OPTIONS"])
+@action_required
 def record_attendance():
     if request.method == "OPTIONS":
         return ("", 204)
@@ -347,6 +363,7 @@ def record_attendance():
 
 # ===================== ACTIVITY =====================
 @bp.route("/activity", methods=["POST", "OPTIONS"])
+@action_required
 def record_activity():
     if request.method == "OPTIONS":
         return ("", 204)

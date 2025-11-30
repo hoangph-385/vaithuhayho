@@ -12,10 +12,23 @@
 </head>
 <body>
   <header>
-    <a href="/" class="{% if request.path == '/' %}active{% endif %}">Trang chủ</a>
-    <a href="/handover" class="{% if request.path.startswith('/handover') %}active{% endif %}">Handover Tool</a>
-    <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
-    <a href="/sdd" class="{% if request.path.startswith('/sdd') %}active{% endif %}">SDD Tool</a>
+    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+      <nav style="display: flex; gap: 0;">
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}">Trang chủ</a>
+        <a href="/handover" class="{% if request.path.startswith('/handover') %}active{% endif %}">Handover Tool</a>
+        <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
+        <a href="/sdd" class="{% if request.path.startswith('/sdd') %}active{% endif %}">SDD Tool</a>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        {% if is_authenticated %}
+          <span style="color: #28a745; font-size: 14px; font-weight: 500;">✓ Đã đăng nhập</span>
+          <a href="/logout" style="padding: 6px 16px; background: #dc3545; color: white; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Logout</a>
+        {% else %}
+          <span style="color: #ffc107; font-size: 14px; font-weight: 500;">⚠ Chế độ xem</span>
+          <a href="/login?next={{ request.path }}" style="padding: 6px 16px; background: #667eea; color: white; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Login</a>
+        {% endif %}
+      </div>
+    </div>
   </header>
 
   <main>
