@@ -119,7 +119,7 @@ function playSound(type) {
     let audio;
     if (type === "success" || type === "ok") {
       audio = audioCache.success;
-    } else if (type === "error") {
+    } else if (type === "error" || type === "warning") {
       audio = audioCache.error;
     } else {
       return; // No sound for other types
@@ -405,34 +405,22 @@ async function downloadPDF(tripId, tripNumber, btn) {
     btn.style.opacity = '0.7';
     btn.style.cursor = 'not-allowed';
 
-    notice(`⏳ Đang tải PDF cho trip ${tripNumber}...`, "info");
+    notice(`⏳ Đang mở PDF cho trip ${tripNumber}...`, "info");
 
     const url = `https://spx.shopee.vn/api/admin/transportation/run_sheet/download_all?trip_id=${tripId}`;
-    let response;
-    try {
-      response = await fetch(url, { credentials: 'include' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const disposition = response.headers.get('Content-Disposition');
-      let filename = `runsheet_${tripNumber}.pdf`;
-      if (disposition && disposition.includes('filename=')) {
-        const match = disposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
-      notice(`✓ Đã tải xong PDF cho trip ${tripNumber}`, "success", 4000);
-    } catch (innerErr) {
-      // Fallback nếu CORS hoặc lỗi fetch
-      console.warn('Fetch PDF thất bại, fallback window.open:', innerErr);
-      window.open(url, '_blank');
-      notice(`⚠ Mở PDF (không xác nhận tải hoàn tất) trip ${tripNumber}`, "info", 4000);
+
+    // Open PDF in new tab
+    const newWindow = window.open(url, '_blank');
+
+    // Check if window opened successfully
+    if (newWindow) {
+      // Play success sound
+      audioCache.success.currentTime = 0;
+      audioCache.success.play().catch(e => console.log("Audio play failed:", e));
+      notice(`✓ Đã mở PDF cho trip ${tripNumber}`, "success", 4000);
+    } else {
+      // Popup blocked
+      throw new Error("Popup bị chặn - vui lòng cho phép popup");
     }
 
     btn.disabled = false;
@@ -449,9 +437,7 @@ async function downloadPDF(tripId, tripNumber, btn) {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
   }
-}
-
-// Event listeners
+}// Event listeners
 document.addEventListener("DOMContentLoaded", () => {
   // Set today's date as default
   const today = new Date();
