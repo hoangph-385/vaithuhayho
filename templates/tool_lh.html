@@ -16,7 +16,6 @@
     <label for="selectedDate" style="font-weight: 600; margin-right: 8px;">Chọn ngày:</label>
     <input type="date" id="selectedDate" class="form-control" style="width: 180px;">
     <button id="btnFetchTrips" class="btn-action">Lấy Danh Sách Trips</button>
-    <button id="btnRefresh" class="btn-action" style="display: none;">Refresh</button>
   </div>
 </div>
 
@@ -28,7 +27,7 @@
 <!-- ===== Trips Table ===== -->
 <div id="tripsSection" style="display: none;">
   <div style="margin-bottom: 20px;">
-    <h3>Danh sách Trips - <span id="tripDate"></span></h3>
+    <h3>Danh sách Trips</h3>
     <p>Tổng số trips: <strong id="totalTrips">0</strong></p>
   </div>
 
@@ -40,10 +39,11 @@
           <th>Trip Number</th>
           <th>Vehicle</th>
           <th>Type</th>
+          <th>Seq</th>
           <th>Load Qty</th>
           <th>Operator</th>
-          <th>Seal Time</th>
           <th>Loading Time</th>
+          <th>Seal Time</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -129,7 +129,8 @@ function hideNotice() {
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "-";
-  return dateStr;
+  // Remove seconds from datetime string (YYYY-MM-DD HH:MM:SS -> YYYY-MM-DD HH:MM)
+  return dateStr.substring(0, 16);
 }
 
 // Fetch trips data
@@ -173,30 +174,37 @@ function displayTrips(data) {
   tbody.innerHTML = "";
 
   if (!data.trips || data.trips.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
     el("tripsSection").style.display = "block";
     return;
   }
 
   // Update summary
   el("totalTrips").textContent = data.total_trips;
-  const now = new Date();
-  el("tripDate").textContent = now.toLocaleDateString("vi-VN");
 
-  // Populate table
-  data.trips.forEach((trip, index) => {
+  // Sort trips by seal_time in descending order (newest first)
+  const sortedTrips = data.trips.sort((a, b) => {
+    if (!a.seal_time) return 1;
+    if (!b.seal_time) return -1;
+    return b.seal_time.localeCompare(a.seal_time);
+  });
+
+  // Populate table (reverse order for Z-A numbering)
+  sortedTrips.forEach((trip, index) => {
+    const stt = data.total_trips - index; // Count down from total
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td style="text-align: center;">${index + 1}</td>
+      <td style="text-align: center;">${stt}</td>
       <td><strong>${trip.trip_number}</strong></td>
       <td>${trip.vehicle_number || "-"}</td>
       <td>${trip.vehicle_type_name || "-"}</td>
+      <td style="text-align: center;">${trip.sequence_number || "-"}</td>
       <td style="text-align: center;">${trip.load_quantity || 0}</td>
       <td>${trip.operator || "-"}</td>
-      <td>${formatDateTime(trip.seal_time)}</td>
       <td>${formatDateTime(trip.loading_time)}</td>
+      <td>${formatDateTime(trip.seal_time)}</td>
       <td style="text-align: center;">
-        <button class="btn-download-csv" id="csv-${trip.id}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', this)">Tải CSV</button>
+        <button class="btn-download-csv" id="csv-${trip.id}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this)">Tải CSV</button>
         <button class="btn-download-pdf" id="pdf-${trip.id}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
       </td>
     `;
@@ -204,11 +212,10 @@ function displayTrips(data) {
   });
 
   el("tripsSection").style.display = "block";
-  el("btnRefresh").style.display = "inline-block";
 }
 
 // Download CSV function
-async function downloadCSV(tripId, tripNumber, btn) {
+async function downloadCSV(tripId, tripNumber, sequenceNumber, btn) {
   const originalText = btn.innerHTML;
   try {
     // Disable button and show spinner
@@ -219,13 +226,13 @@ async function downloadCSV(tripId, tripNumber, btn) {
 
     notice(`⏳ Đang tải CSV cho trip ${tripNumber}...`, "info");
 
-    // Direct download via link
-    const url = `/api/report/LH_get_list/${tripId}/${tripNumber}`;
+    // Direct download via link with sequence_number
+    const url = `/api/report/LH_get_list/${tripId}/${tripNumber}?seq=${sequenceNumber}`;
     window.location.href = url;
 
     // Show success after a short delay
     setTimeout(() => {
-      notice(`✓ Đang tải file CSV cho trip ${tripNumber}`, "success", 3000);
+      notice(`✓ Đang tải file CSV cho trip ${tripNumber}`, "success", 6000);
       // Re-enable button
       btn.disabled = false;
       btn.innerHTML = originalText;
@@ -291,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
   el("selectedDate").value = `${yyyy}-${mm}-${dd}`;
 
   el("btnFetchTrips").addEventListener("click", fetchTrips);
-  el("btnRefresh").addEventListener("click", fetchTrips);
 });
 </script>
 

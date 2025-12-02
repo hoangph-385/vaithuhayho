@@ -28,6 +28,59 @@ def get_trip_data(trip_id, trip_number=None):
         trip_id: ID của trip cần lấy dữ liệu
         trip_number: Trip number (tùy chọn, dùng để đặt tên file)
     """
+    # Bước 1: Lấy sequence_number từ trip history
+    trip_history_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/list"
+    trip_params = {
+        "trip_id": trip_id,
+        "type": "outbound"
+    }
+
+    print(f"Đang lấy thông tin trip_id: {trip_id}...")
+
+    try:
+        trip_response = requests.get(trip_history_url, params=trip_params, headers=headers)
+        trip_response.raise_for_status()
+        trip_data = trip_response.json()
+
+        if trip_data.get("retcode") != 0:
+            print(f"Lỗi API trip history: {trip_data.get('message')}")
+            return
+
+        # Debug: In ra cấu trúc dữ liệu
+        print(f"DEBUG - trip_data keys: {trip_data.keys()}")
+        if "data" in trip_data:
+            print(f"DEBUG - data keys: {trip_data['data'].keys()}")
+            if "list" in trip_data["data"] and len(trip_data["data"]["list"]) > 0:
+                print(f"DEBUG - trip_station: {trip_data['data']['list'][0].get('trip_station', [])}")
+
+        # Lấy sequence_number từ trip_station (ưu tiên station 2259)
+        sequence_number = 1  # Giá trị mặc định
+        if "data" in trip_data:
+            # Lấy trip đầu tiên từ list
+            if "list" in trip_data["data"] and len(trip_data["data"]["list"]) > 0:
+                trip = trip_data["data"]["list"][0]
+                trip_station = trip.get("trip_station", [])
+
+                if isinstance(trip_station, list) and len(trip_station) > 0:
+                    # Tìm station 2259 trước
+                    station_2259 = next((s for s in trip_station if s.get("station") == 2259), None)
+                    if station_2259:
+                        sequence_number = station_2259.get("sequence_number", 1)
+                    else:
+                        # Fallback lấy phần tử đầu tiên
+                        sequence_number = trip_station[0].get("sequence_number", 1)
+
+        print(f"Sequence number: {sequence_number}")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Lỗi kết nối API trip history: {e}")
+        print("Sử dụng sequence_number mặc định = 1")
+    except Exception as e:
+        print(f"Lỗi lấy sequence_number: {e}")
+        print("Sử dụng sequence_number mặc định = 1")
+
+
+    # Bước 2: Lấy danh sách loading với sequence_number đã lấy được
     base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
 
     # Lấy trang đầu tiên để biết tổng số trang
@@ -35,11 +88,11 @@ def get_trip_data(trip_id, trip_number=None):
         "trip_id": trip_id,
         "pageno": 1,
         "count": 50,
-        "loaded_sequence_number": 1,
+        "loaded_sequence_number": sequence_number,
         "type": "outbound"
     }
 
-    print(f"Đang lấy dữ liệu cho trip_id: {trip_id}...")
+    print(f"Đang lấy dữ liệu loading list...")
 
     try:
         response = requests.get(base_url, params=params, headers=headers)
@@ -98,8 +151,8 @@ def get_trip_data(trip_id, trip_number=None):
                     "ctime": item.get("ctime", 0)
                 })
 
-        # Sắp xếp dữ liệu theo: to_parcel_quantity -> pack_type_name -> ctime
-        all_data.sort(key=lambda x: (x["to_parcel_quantity"], x["pack_type_name"], x["ctime"]))
+        # Sắp xếp dữ liệu theo: ctime -> to_parcel_quantity -> pack_type_name
+        all_data.sort(key=lambda x: (x["ctime"], x["to_parcel_quantity"], x["pack_type_name"]))
 
         # Convert ctime sang GMT+7
         gmt7 = timezone(timedelta(hours=7))

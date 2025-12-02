@@ -179,10 +179,8 @@ def api_lh_report():
         if data.get("retcode") == 0 and data.get("data"):
             trips = []
             for trip in data["data"]["list"]:
-                # Get station with sequence_number = 1
-                station = next((s for s in trip.get("trip_station", []) if s.get("sequence_number") == 1), {})
-                # Get station 2259 for load_quantity
-                station_2259 = next((s for s in trip.get("trip_station", []) if s.get("station") == 2259), {})
+                # Ưu tiên lấy station 2259 trước
+                station = next((s for s in trip.get("trip_station", []) if s.get("station") == 2259), {})
 
                 trips.append({
                     "id": trip["id"],
@@ -190,7 +188,8 @@ def api_lh_report():
                     "operator": trip.get("operator", ""),
                     "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
                     "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
-                    "load_quantity": station_2259.get("load_quantity", 0),
+                    "sequence_number": station.get("sequence_number", 1),
+                    "load_quantity": station.get("load_quantity", 0),
                     "vehicle_number": trip.get("vehicle_number", ""),
                     "vehicle_type_name": trip.get("vehicle_type_name", ""),
                 })
@@ -236,10 +235,16 @@ def api_lh_get_list(trip_id, trip_number):
         trip_id: Trip ID to fetch details for
         trip_number: Trip number for filename
 
+    Query params:
+        seq: sequence_number (optional, default: 1)
+
     Returns:
         CSV file download with TO details
     """
     WH = "SPX"
+
+    # Get sequence_number from query params (đã được truyền từ frontend)
+    sequence_number = request.args.get('seq', 1, type=int)
 
     # Get cookie from Firebase RTDB
     try:
@@ -251,6 +256,8 @@ def api_lh_get_list(trip_id, trip_number):
         }), 500
 
     headers = build_api_headers(cookie)
+
+    # Get loading list with sequence_number
     base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
 
     try:
@@ -259,7 +266,7 @@ def api_lh_get_list(trip_id, trip_number):
             "trip_id": trip_id,
             "pageno": 1,
             "count": 50,
-            "loaded_sequence_number": 1,
+            "loaded_sequence_number": sequence_number,
             "type": "outbound"
         }
 
@@ -315,8 +322,8 @@ def api_lh_get_list(trip_id, trip_number):
                     "ctime": item.get("ctime", 0)
                 })
 
-        # Sort data by: to_parcel_quantity -> pack_type_name -> ctime
-        all_data.sort(key=lambda x: (x["to_parcel_quantity"], x["pack_type_name"], x["ctime"]))
+        # Sort data by: ctime -> to_parcel_quantity -> pack_type_name
+        all_data.sort(key=lambda x: (x["ctime"], x["to_parcel_quantity"], x["pack_type_name"]))
 
         # Convert ctime to GMT+7
         gmt7 = timezone(timedelta(hours=7))

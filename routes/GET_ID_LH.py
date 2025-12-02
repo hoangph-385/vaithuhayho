@@ -15,7 +15,7 @@ cookie = firebase_read_cookie_rtdb(WH, firebase_url)
 headers = build_api_headers(cookie)
 
 def extract_trip_data(trip):
-    station = next((s for s in trip.get("trip_station", []) if s.get("sequence_number") == 1), {})
+    station = next((s for s in trip.get("trip_station", []) if s.get("station") == 2259), {})
     return {
         "id": trip["id"],
         "trip_number": trip["trip_number"],
