@@ -34,7 +34,7 @@
   </div>
 
   <div class="row">
-    <button id="btnFetchData" class="btn-action">Lấy Dữ Liệu</button>
+    <button id="btnFetchData" class="btn-action">Lấy dữ liệu</button>
   </div>
 </div>
 
@@ -189,15 +189,12 @@ function $$(sel) { return document.querySelectorAll(sel); }
 
 function notice(msg, type = "info", duration = 0) {
   const n = el("notice");
-
-  // Check if message contains newlines and format accordingly
-  if (msg.includes('\n')) {
-    // Replace \n with <br> for HTML display
-    n.innerHTML = msg.replace(/\n/g, '<br>');
-  } else {
-    n.textContent = msg;
+  let htmlMsg = msg.includes('\n') ? msg.replace(/\n/g, '<br>') : msg;
+  const isLoading = type === 'info' && /Đang tải|Đang lấy|⏳/.test(msg);
+  if (isLoading) {
+    htmlMsg = `<span class="spinner-lg spinner-lg-notice"></span>${htmlMsg.replace(/^⏳\s?/, '')}`;
   }
-
+  n.innerHTML = htmlMsg;
   n.className = "notice";
   n.setAttribute("data-kind", type);
   n.style.display = "block";

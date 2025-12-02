@@ -1027,6 +1027,36 @@ table td {
   100% { transform: rotate(360deg); }
 }
 
+/* ========== Spinner Components ========== */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.spinner-lg {
+  width: 20px;
+  height: 20px;
+  border: 4px solid rgba(102,126,234,0.3);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+.spinner-lg-notice {
+  margin-right: 8px;
+}
+
+
 .sdd-page .form-control {
   height: 36px;
   padding: 0 12px;
@@ -1880,6 +1910,82 @@ td.editing:focus {
 }
 
 /* Active state when in edit mode - green color */
+
+/* ========== LH Report Page Styles ========== */
+.lh-page #controls {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.lh-page .btn-download-csv {
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-right: 4px;
+}
+
+.lh-page .btn-download-csv:hover {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
+}
+
+.lh-page .btn-download-csv:active {
+  transform: translateY(0);
+}
+
+.lh-page .btn-download-pdf {
+  padding: 6px 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.lh-page .btn-download-pdf:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+}
+
+.lh-page .btn-download-pdf:active {
+  transform: translateY(0);
+}
+
+.lh-page #tripsSection,
+.lh-page #handoverSection {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.lh-page h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.lh-page p {
+  margin: 0;
+  color: #666;
+}
+
 #btnEditMode.btn-action.active {
   background: #28a745;
   color: white;

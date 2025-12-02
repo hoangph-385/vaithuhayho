@@ -6,7 +6,7 @@
   window.API_BASE = window.API_BASE || "";
 </script>
 
-<div class="sdd-page">
+<div class="sdd-page lh-page">
 <!-- ===== Notice ===== -->
 <div id="notice" class="notice"></div>
 
@@ -17,11 +17,6 @@
     <input type="date" id="selectedDate" class="form-control" style="width: 180px;">
     <button id="btnFetchTrips" class="btn-action">Lấy dữ liệu</button>
   </div>
-</div>
-
-<!-- ===== Loading Indicator ===== -->
-<div id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
-  <div style="font-size: 16px; color: #667eea;"><span class="spinner-lg"></span> Đang tải dữ liệu...</div>
 </div>
 
 <!-- ===== Outbound Trips Table ===== -->
@@ -104,23 +99,16 @@ function el(id) { return document.getElementById(id); }
 
 function notice(msg, type = "info", duration = 0) {
   const n = el("notice");
-
-  // Check if message contains newlines and format accordingly
-  if (msg.includes('\n')) {
-    // Replace \n with <br> for HTML display
-    n.innerHTML = msg.replace(/\n/g, '<br>');
-  } else {
-    n.textContent = msg;
+  let htmlMsg = msg.includes('\n') ? msg.replace(/\n/g, '<br>') : msg;
+  const isLoading = type === 'info' && /Đang tải|Đang lấy|⏳/.test(msg);
+  if (isLoading) {
+    htmlMsg = `<span class=\"spinner-lg spinner-lg-notice\"></span>${htmlMsg.replace(/^⏳\s?/, '')}`;
   }
-
+  n.innerHTML = htmlMsg;
   n.className = "notice";
   n.setAttribute("data-kind", type);
   n.style.display = "block";
-
-  // Play sound
   playSound(type);
-
-  // Only hide after duration if duration > 0
   if (duration > 0) {
     setTimeout(() => { n.style.display = "none"; }, duration);
   }
@@ -169,7 +157,7 @@ function formatDateTime(dateStr) {
 async function fetchTrips() {
   try {
     hideNotice();
-    el("loadingIndicator").style.display = "block";
+    notice('⏳ Đang tải dữ liệu trips...', 'info');
     el("tripsSection").style.display = "none";
     el("handoverSection").style.display = "none";
     el("btnFetchTrips").disabled = true;
@@ -219,7 +207,6 @@ async function fetchTrips() {
     console.error("Error fetching trips:", error);
     notice(`✗ Lỗi: ${error.message}`, "error", 5000);
   } finally {
-    el("loadingIndicator").style.display = "none";
     el("btnFetchTrips").disabled = false;
   }
 }
@@ -477,155 +464,55 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-<style>
-.sdd-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-#controls {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.btn-action {
-  padding: 10px 24px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-action:hover {
-  background: #5568d3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-action:active {
-  transform: translateY(0);
-}
-
-.btn-action:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-download-csv {
-  padding: 6px 12px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  margin-right: 4px;
-}
-
-.btn-download-csv:hover {
-  background: #218838;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
-}
-
-.btn-download-csv:active {
-  transform: translateY(0);
-}
-
-.btn-download-pdf {
-  padding: 6px 12px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-download-pdf:hover {
-  background: #c82333;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
-}
-
-.btn-download-pdf:active {
-  transform: translateY(0);
-}
-
-#tripsSection {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-
-#handoverSection {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-
-h3 {
-  margin: 0 0 10px 0;
-  color: #333;
-}
-
-p {
-  margin: 0;
-  color: #666;
-}
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 3px solid rgba(255,255,255,0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-  margin-right: 6px;
-}
-
-.spinner-lg {
-  width: 20px;
-  height: 20px;
-  border: 4px solid rgba(102,126,234,0.3);
-  border-top-color: #667eea;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-  margin-right: 10px;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-</style>
+<!-- ========================== View-Only Mode Handler ========================== -->
+<script>
+(function() {
+  "use strict";
+  const isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}";
+  function applyViewOnlyMode() {
+    if (isAuthenticated === 'true') return;
+    console.log('[VIEW-ONLY] Disabling all action controls');
+    const inputs = ['selectedDate'];
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.disabled = true;
+        el.readOnly = true;
+        el.style.opacity = '0.6';
+        el.style.cursor = 'not-allowed';
+        el.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+      }
+    });
+    const buttons = ['btnFetchTrips'];
+    buttons.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+      }
+    });
+    document.querySelectorAll('.btn-download-csv, .btn-download-pdf').forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
+      btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+    });
+    const notice = document.getElementById('notice');
+    if (notice) {
+      notice.innerHTML = '⚠ Chế độ chỉ xem - Vui lòng đăng nhập để thực hiện thao tác';
+      notice.className = 'notice';
+      notice.setAttribute('data-kind', 'warning');
+      notice.style.display = 'block';
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyViewOnlyMode);
+  } else {
+    applyViewOnlyMode();
+  }
+  setTimeout(applyViewOnlyMode, 500);
+})();
+</script>
 {% endblock %}
