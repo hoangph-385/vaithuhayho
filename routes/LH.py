@@ -22,7 +22,7 @@ def get_all_trips():
         List các trip hoặc None nếu lỗi
     """
     from_time, to_time = get_daily_timestamps()
-    url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=24&mtime={from_time},{to_time}&middle_station=3983"
+    url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=300&mtime={from_time},{to_time}&middle_station=3983"
 
     try:
         response = requests.get(url, headers=headers)

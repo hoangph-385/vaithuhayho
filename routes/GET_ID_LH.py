@@ -8,7 +8,7 @@ from utility import build_api_headers, firebase_read_cookie_rtdb, firebase_url, 
 
 WH = "SPX"
 from_time, to_time = get_daily_timestamps()
-URL = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=24&mtime={from_time},{to_time}&middle_station=3983"
+URL = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=300&mtime={from_time},{to_time}&middle_station=3983"
 
 # Lấy cookie từ Firebase
 cookie = firebase_read_cookie_rtdb(WH, firebase_url)

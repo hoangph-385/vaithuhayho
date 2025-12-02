@@ -190,6 +190,7 @@ def api_lh_report():
                     "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
                     "sequence_number": station.get("sequence_number", 1),
                     "load_quantity": station.get("load_quantity", 0),
+                    "to_parcel_quantity": 0,  # Will be fetched by frontend using Promise.all
                     "vehicle_number": trip.get("vehicle_number", ""),
                     "vehicle_type_name": trip.get("vehicle_type_name", ""),
                 })
@@ -207,6 +208,201 @@ def api_lh_report():
                 "error": data.get("message", "Unknown error from API"),
                 "retcode": data.get("retcode")
             }), 400
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "ok": False,
+            "error": "API request timeout"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "ok": False,
+            "error": f"API request failed: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+
+@bp.get("/LH_report_handover")
+def api_lh_report_handover():
+    """
+    Get all LH (Last Hub) handover trips from SPX API
+    Similar to LH_report but with query_type=2 for handover trips
+
+    Query params:
+        date: Optional date in YYYY-MM-DD format (default: today)
+
+    Returns:
+        JSON with list of handover trips
+    """
+    WH = "SPX"
+
+    # Get date parameter (default to today)
+    date_param = request.args.get('date', '')
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get cookie: {str(e)}"
+        }), 500
+
+    headers = build_api_headers(cookie)
+
+    # Get daily timestamps
+    try:
+        if date_param:
+            # Parse date string (YYYY-MM-DD) and convert to timestamps
+            target_date = datetime.strptime(date_param, "%Y-%m-%d")
+            gmt7 = timezone(timedelta(hours=7))
+            start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=gmt7)
+            end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=gmt7)
+            from_time = int(start_of_day.timestamp())
+            to_time = int(end_of_day.timestamp())
+        else:
+            from_time, to_time = get_daily_timestamps()
+    except ValueError:
+        return jsonify({
+            "ok": False,
+            "error": "Invalid date format. Use YYYY-MM-DD"
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get timestamps: {str(e)}"
+        }), 500
+
+    # Build API URL with query_type=2 for handover trips
+    # Using trip/list endpoint (different from Outbound's trip/history/list)
+    # Note: mtime uses different range (earlier start time) compared to loading_time
+    # Based on user example: mtime start is 2 days (48h) before loading_time start
+    mtime_start = from_time - (48 * 3600)
+    url = f"https://spx.shopee.vn/api/admin/transportation/trip/list?loading_time={from_time},{to_time}&pageno=1&count=300&mtime={mtime_start},{to_time}&query_type=2&middle_station=3983"
+
+    # Call API
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("retcode") == 0 and data.get("data"):
+            trips = []
+            for trip in data["data"]["list"]:
+                # Ưu tiên lấy station 2259 trước
+                station = next((s for s in trip.get("trip_station", []) if s.get("station") == 2259), {})
+
+                # Nếu không có station 2259, lấy station đầu tiên
+                if not station and trip.get("trip_station"):
+                    station = trip["trip_station"][0] if isinstance(trip["trip_station"], list) else {}
+
+                trips.append({
+                    "id": trip["id"],
+                    "trip_number": trip["trip_number"],
+                    "operator": trip.get("operator", ""),
+                    "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
+                    "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
+                    "sequence_number": station.get("sequence_number", 1),
+                    "load_quantity": station.get("load_quantity", 0),
+                    "to_parcel_quantity": 0,  # Will be fetched by frontend using Promise.all
+                    "vehicle_number": trip.get("vehicle_number", ""),
+                    "vehicle_type_name": trip.get("vehicle_type_name", ""),
+                })
+
+            return jsonify({
+                "ok": True,
+                "total_trips": len(trips),
+                "trips": trips,
+                "from_time": from_time,
+                "to_time": to_time
+            })
+        else:
+            return jsonify({
+                "ok": False,
+                "error": data.get("message", "Unknown error from API"),
+                "retcode": data.get("retcode")
+            }), 400
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "ok": False,
+            "error": "API request timeout"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "ok": False,
+            "error": f"API request failed: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+
+@bp.get("/LH_get_parcel_count/<trip_id>")
+def api_lh_get_parcel_count(trip_id):
+    """
+    Get total_parcel count for a specific trip
+
+    Args:
+        trip_id: Trip ID to fetch parcel count for
+
+    Query params:
+        seq: sequence_number (optional, default: 1)
+
+    Returns:
+        JSON with total_parcel count
+    """
+    WH = "SPX"
+
+    # Get sequence_number from query params
+    sequence_number = request.args.get('seq', 1, type=int)
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get cookie: {str(e)}"
+        }), 500
+
+    headers = build_api_headers(cookie)
+
+    # Get loading list with sequence_number
+    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
+
+    try:
+        params = {
+            "trip_id": trip_id,
+            "pageno": 1,
+            "count": 1,  # Only need first page to get total_parcel
+            "loaded_sequence_number": sequence_number,
+            "type": "outbound"
+        }
+
+        response = requests.get(base_url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("retcode") != 0:
+            return jsonify({
+                "ok": False,
+                "error": data.get("message", "Unknown error from API")
+            }), 400
+
+        total_parcel = data["data"].get("total_parcel", 0)
+
+        return jsonify({
+            "ok": True,
+            "trip_id": trip_id,
+            "total_parcel": total_parcel
+        })
 
     except requests.exceptions.Timeout:
         return jsonify({

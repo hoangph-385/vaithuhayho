@@ -87,7 +87,7 @@ def get_trip_data(trip_id, trip_number=None):
     params = {
         "trip_id": trip_id,
         "pageno": 1,
-        "count": 50,
+        "count": 300,
         "loaded_sequence_number": sequence_number,
         "type": "outbound"
     }

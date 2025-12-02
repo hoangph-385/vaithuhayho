@@ -15,19 +15,19 @@
   <div class="row">
     <label for="selectedDate" style="font-weight: 600; margin-right: 8px;">Chọn ngày:</label>
     <input type="date" id="selectedDate" class="form-control" style="width: 180px;">
-    <button id="btnFetchTrips" class="btn-action">Lấy Danh Sách Trips</button>
+    <button id="btnFetchTrips" class="btn-action">Lấy dữ liệu</button>
   </div>
 </div>
 
 <!-- ===== Loading Indicator ===== -->
 <div id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
-  <div style="font-size: 16px; color: #667eea;">⏳ Đang tải dữ liệu...</div>
+  <div style="font-size: 16px; color: #667eea;"><span class="spinner-lg"></span> Đang tải dữ liệu...</div>
 </div>
 
-<!-- ===== Trips Table ===== -->
+<!-- ===== Outbound Trips Table ===== -->
 <div id="tripsSection" style="display: none;">
   <div style="margin-bottom: 20px;">
-    <h3>Danh sách Trips</h3>
+    <h3>Danh sách Trips - Outbound</h3>
     <p>Tổng số trips: <strong id="totalTrips">0</strong></p>
   </div>
 
@@ -40,7 +40,8 @@
           <th>Vehicle</th>
           <th>Type</th>
           <th>Seq</th>
-          <th>Load Qty</th>
+          <th>TO Qty</th>
+          <th>Parcel Qty</th>
           <th>Operator</th>
           <th>Loading Time</th>
           <th>Seal Time</th>
@@ -49,6 +50,37 @@
       </thead>
       <tbody id="tripsTableBody">
         <!-- Trips will be populated here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== Handover Trips Table ===== -->
+<div id="handoverSection" style="display: none;">
+  <div style="margin-bottom: 20px;">
+    <h3>Danh sách Trips - Handover</h3>
+    <p>Tổng số trips: <strong id="totalHandoverTrips">0</strong></p>
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table class="table" id="handoverTable">
+      <thead>
+        <tr>
+          <th>STT</th>
+          <th>Trip Number</th>
+          <th>Vehicle</th>
+          <th>Type</th>
+          <th>Seq</th>
+          <th>TO Qty</th>
+          <th>Parcel Qty</th>
+          <th>Operator</th>
+          <th>Loading Time</th>
+          <th>Seal Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="handoverTableBody">
+        <!-- Handover trips will be populated here -->
       </tbody>
     </table>
   </div>
@@ -129,8 +161,8 @@ function hideNotice() {
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "-";
-  // Remove seconds from datetime string (YYYY-MM-DD HH:MM:SS -> YYYY-MM-DD HH:MM)
-  return dateStr.substring(0, 16);
+  // Extract only HH:MM from datetime string (YYYY-MM-DD HH:MM:SS -> HH:MM)
+  return dateStr.substring(11, 16);
 }
 
 // Fetch trips data
@@ -139,33 +171,56 @@ async function fetchTrips() {
     hideNotice();
     el("loadingIndicator").style.display = "block";
     el("tripsSection").style.display = "none";
+    el("handoverSection").style.display = "none";
     el("btnFetchTrips").disabled = true;
 
     // Get selected date
     const selectedDate = el("selectedDate").value;
-    const url = selectedDate
+    const outboundUrl = selectedDate
       ? `/api/report/LH_report?date=${selectedDate}`
       : "/api/report/LH_report";
+    const handoverUrl = selectedDate
+      ? `/api/report/LH_report_handover?date=${selectedDate}`
+      : "/api/report/LH_report_handover";
 
-    const response = await fetch(url);
-    const data = await response.json();
+    // Fetch both outbound and handover trips in parallel
+    const [outboundResponse, handoverResponse] = await Promise.all([
+      fetch(outboundUrl),
+      fetch(handoverUrl)
+    ]);
 
-    el("loadingIndicator").style.display = "none";
-    el("btnFetchTrips").disabled = false;
+    const [outboundData, handoverData] = await Promise.all([
+      outboundResponse.json(),
+      handoverResponse.json()
+    ]);
 
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error || "Failed to fetch trips");
+    // Debug logging
+    console.log("Outbound response:", outboundResponse.ok, outboundData);
+    console.log("Handover response:", handoverResponse.ok, handoverData);
+
+    if (!outboundResponse.ok || !outboundData.ok) {
+      throw new Error(outboundData.error || "Failed to fetch outbound trips");
     }
 
-    // Display trips
-    displayTrips(data);
-    notice(`✓ Đã tải ${data.total_trips} trips thành công!`, "success", 3000);
+    // Display trips and wait for rendering to complete
+    await displayTrips(outboundData);
+
+    // Always display handover section, even if no data or error
+    if (handoverResponse.ok && handoverData.ok) {
+      await displayHandoverTrips(handoverData);
+      notice(`✓ Đã tải ${outboundData.total_trips} Outbound trips và ${handoverData.total_trips} Handover trips!`, "success", 3000);
+    } else {
+      // Show empty handover table even on error
+      await displayHandoverTrips({ ok: false, total_trips: 0, trips: [] });
+      notice(`✓ Đã tải ${outboundData.total_trips} Outbound trips!`, "success", 3000);
+    }
 
   } catch (error) {
     console.error("Error fetching trips:", error);
+    notice(`✗ Lỗi: ${error.message}`, "error", 5000);
+  } finally {
     el("loadingIndicator").style.display = "none";
     el("btnFetchTrips").disabled = false;
-    notice(`✗ Lỗi: ${error.message}`, "error", 5000);
   }
 }
 
@@ -174,9 +229,9 @@ function displayTrips(data) {
   tbody.innerHTML = "";
 
   if (!data.trips || data.trips.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
     el("tripsSection").style.display = "block";
-    return;
+    return Promise.resolve();
   }
 
   // Update summary
@@ -189,56 +244,158 @@ function displayTrips(data) {
     return b.seal_time.localeCompare(a.seal_time);
   });
 
-  // Populate table (reverse order for Z-A numbering)
-  sortedTrips.forEach((trip, index) => {
-    const stt = data.total_trips - index; // Count down from total
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td style="text-align: center;">${stt}</td>
-      <td><strong>${trip.trip_number}</strong></td>
-      <td>${trip.vehicle_number || "-"}</td>
-      <td>${trip.vehicle_type_name || "-"}</td>
-      <td style="text-align: center;">${trip.sequence_number || "-"}</td>
-      <td style="text-align: center;">${trip.load_quantity || 0}</td>
-      <td>${trip.operator || "-"}</td>
-      <td>${formatDateTime(trip.loading_time)}</td>
-      <td>${formatDateTime(trip.seal_time)}</td>
-      <td style="text-align: center;">
-        <button class="btn-download-csv" id="csv-${trip.id}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this)">Tải CSV</button>
-        <button class="btn-download-pdf" id="pdf-${trip.id}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
-      </td>
-    `;
-    tbody.appendChild(row);
+  // Fetch parcel counts for all trips using Promise.all
+  const parcelPromises = sortedTrips.map(trip =>
+    fetch(`/api/report/LH_get_parcel_count/${trip.id}?seq=${trip.sequence_number || 1}`)
+      .then(res => res.json())
+      .then(result => ({
+        trip_id: trip.id,
+        total_parcel: result.ok ? result.total_parcel : 0
+      }))
+      .catch(() => ({ trip_id: trip.id, total_parcel: 0 }))
+  );
+
+  return Promise.all(parcelPromises).then(parcelResults => {
+    // Create a map for quick lookup
+    const parcelMap = {};
+    parcelResults.forEach(result => {
+      parcelMap[result.trip_id] = result.total_parcel;
+    });
+
+    // Populate table with parcel counts
+    sortedTrips.forEach((trip, index) => {
+      const stt = data.total_trips - index;
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td style="text-align: center;">${stt}</td>
+        <td><strong>${trip.trip_number}</strong></td>
+        <td>${trip.vehicle_number || "-"}</td>
+        <td>${trip.vehicle_type_name || "-"}</td>
+        <td style="text-align: center;">${trip.sequence_number || "-"}</td>
+        <td style="text-align: center;">${trip.load_quantity || 0}</td>
+        <td style="text-align: center;">${parcelMap[trip.id] || 0}</td>
+        <td>${trip.operator || "-"}</td>
+        <td>${formatDateTime(trip.loading_time)}</td>
+        <td>${formatDateTime(trip.seal_time)}</td>
+        <td style="text-align: center;">
+          <button class="btn-download-csv" id="csv-${trip.id}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this)">Tải CSV</button>
+          <button class="btn-download-pdf" id="pdf-${trip.id}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    el("tripsSection").style.display = "block";
+  });
+}
+
+function displayHandoverTrips(data) {
+  console.log("displayHandoverTrips called with:", data);
+  const tbody = el("handoverTableBody");
+  tbody.innerHTML = "";
+
+  if (!data.trips || data.trips.length === 0) {
+    console.log("No handover trips data");
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
+    el("handoverSection").style.display = "block";
+    return Promise.resolve();
+  }
+
+  // Update summary
+  el("totalHandoverTrips").textContent = data.total_trips;
+  console.log(`Displaying ${data.total_trips} handover trips`);
+
+  // Sort trips by seal_time in descending order (newest first)
+  const sortedTrips = data.trips.sort((a, b) => {
+    if (!a.seal_time) return 1;
+    if (!b.seal_time) return -1;
+    return b.seal_time.localeCompare(a.seal_time);
   });
 
-  el("tripsSection").style.display = "block";
+  // Fetch parcel counts for all trips using Promise.all
+  const parcelPromises = sortedTrips.map(trip =>
+    fetch(`/api/report/LH_get_parcel_count/${trip.id}?seq=${trip.sequence_number || 1}`)
+      .then(res => res.json())
+      .then(result => ({
+        trip_id: trip.id,
+        total_parcel: result.ok ? result.total_parcel : 0
+      }))
+      .catch(() => ({ trip_id: trip.id, total_parcel: 0 }))
+  );
+
+  return Promise.all(parcelPromises).then(parcelResults => {
+    // Create a map for quick lookup
+    const parcelMap = {};
+    parcelResults.forEach(result => {
+      parcelMap[result.trip_id] = result.total_parcel;
+    });
+
+    // Populate table with parcel counts
+    sortedTrips.forEach((trip, index) => {
+      const stt = data.total_trips - index;
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td style="text-align: center;">${stt}</td>
+        <td><strong>${trip.trip_number}</strong></td>
+        <td>${trip.vehicle_number || "-"}</td>
+        <td>${trip.vehicle_type_name || "-"}</td>
+        <td style="text-align: center;">${trip.sequence_number || "-"}</td>
+        <td style="text-align: center;">${trip.load_quantity || 0}</td>
+        <td style="text-align: center;">${parcelMap[trip.id] || 0}</td>
+        <td>${trip.operator || "-"}</td>
+        <td>${formatDateTime(trip.loading_time)}</td>
+        <td>${formatDateTime(trip.seal_time)}</td>
+        <td style="text-align: center;">
+          <button class="btn-download-csv" id="csv-h-${trip.id}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this)">Tải CSV</button>
+          <button class="btn-download-pdf" id="pdf-h-${trip.id}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    el("handoverSection").style.display = "block";
+  });
 }
 
 // Download CSV function
 async function downloadCSV(tripId, tripNumber, sequenceNumber, btn) {
   const originalText = btn.innerHTML;
   try {
-    // Disable button and show spinner
+    // Disable button and show spinner animation
     btn.disabled = true;
-    btn.innerHTML = '⏳ Đang tải...';
+    btn.innerHTML = '<span class="spinner"></span> Đang tải...';
     btn.style.opacity = '0.7';
     btn.style.cursor = 'not-allowed';
 
     notice(`⏳ Đang tải CSV cho trip ${tripNumber}...`, "info");
 
-    // Direct download via link with sequence_number
     const url = `/api/report/LH_get_list/${tripId}/${tripNumber}?seq=${sequenceNumber}`;
-    window.location.href = url;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    // Show success after a short delay
-    setTimeout(() => {
-      notice(`✓ Đang tải file CSV cho trip ${tripNumber}`, "success", 6000);
-      // Re-enable button
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-    }, 1500);
+    // Get filename from headers if provided
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = `${tripNumber}.csv`;
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+
+    notice(`✓ Đã tải xong CSV cho trip ${tripNumber}`, "success", 6000);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
 
   } catch (error) {
     console.error("Error downloading CSV:", error);
@@ -257,25 +414,44 @@ async function downloadPDF(tripId, tripNumber, btn) {
   try {
     // Disable button and show spinner
     btn.disabled = true;
-    btn.innerHTML = '⏳ Đang tải...';
+    btn.innerHTML = '<span class="spinner"></span> Đang tải...';
     btn.style.opacity = '0.7';
     btn.style.cursor = 'not-allowed';
 
     notice(`⏳ Đang tải PDF cho trip ${tripNumber}...`, "info");
 
-    // Direct download via API
     const url = `https://spx.shopee.vn/api/admin/transportation/run_sheet/download_all?trip_id=${tripId}`;
-    window.open(url, '_blank');
+    let response;
+    try {
+      response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `runsheet_${tripNumber}.pdf`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+      notice(`✓ Đã tải xong PDF cho trip ${tripNumber}`, "success", 4000);
+    } catch (innerErr) {
+      // Fallback nếu CORS hoặc lỗi fetch
+      console.warn('Fetch PDF thất bại, fallback window.open:', innerErr);
+      window.open(url, '_blank');
+      notice(`⚠ Mở PDF (không xác nhận tải hoàn tất) trip ${tripNumber}`, "info", 4000);
+    }
 
-    // Show success after a short delay
-    setTimeout(() => {
-      notice(`✓ Đã mở PDF cho trip ${tripNumber}`, "success", 3000);
-      // Re-enable button
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-    }, 1500);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
 
   } catch (error) {
     console.error("Error downloading PDF:", error);
@@ -330,7 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
   border: none;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -357,8 +533,8 @@ document.addEventListener("DOMContentLoaded", () => {
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -381,8 +557,8 @@ document.addEventListener("DOMContentLoaded", () => {
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -403,6 +579,15 @@ document.addEventListener("DOMContentLoaded", () => {
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+#handoverSection {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
 }
 
 h3 {
@@ -413,6 +598,34 @@ h3 {
 p {
   margin: 0;
   color: #666;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.spinner-lg {
+  width: 20px;
+  height: 20px;
+  border: 4px solid rgba(102,126,234,0.3);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
 {% endblock %}
