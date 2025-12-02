@@ -1159,7 +1159,7 @@ get(ref(db, `/${today()}`)).then(s => console.log("[SNAP today]", today(), s.exi
   "use strict";
 
   // Check if user is authenticated (passed from backend via template)
-  const isAuthenticated = {{ 'true' if is_authenticated else 'false' }};
+  const isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}";
 
   function applyViewOnlyMode() {
     if (isAuthenticated) return;

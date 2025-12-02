@@ -153,8 +153,22 @@ def _search_tasks_pages(headers: dict, pages: int = 5, count: int = 100) -> list
             time.sleep(1)
     return all_tasks
 
-def _create_and_fetch_excel(headers: dict, time_from: int, time_to: int, wh: str) -> pd.DataFrame:
-    """Create export task and fetch Excel data"""
+def _create_and_fetch_excel(headers: dict, time_from: int, time_to: int, wh: str, date_ref: int = 0, status_list: list = None) -> pd.DataFrame:
+    """Create export task and fetch Excel data
+
+    Args:
+        date_ref: 0 = filter by update_time (for status=Created orders)
+                  1 = filter by created_time (for orders created in COT)
+        status_list: List of status codes to filter. Default [0] = Created only.
+                     Use [0,1,2,3,4,5,6,7,8,9,10] for all statuses when filtering by created_time.
+    """
+    if status_list is None:
+        status_list = [0]  # Default: only Created status
+
+    # API doesn't accept empty list, so if empty, use all possible statuses
+    if not status_list:
+        status_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All possible order statuses
+
     created_ts_s = int(time.time())
     created_ts_ms = int(time.time() * 1000)
 
@@ -162,10 +176,10 @@ def _create_and_fetch_excel(headers: dict, time_from: int, time_to: int, wh: str
         "timeRange": 0,
         "module": EXPORT_MODULE,
         "taskType": TASK_TYPE,
-        "status_list": [0],
+        "status_list": status_list,
         "order_type": 0,
         "include_sku_list": 1,
-        "date_ref": 0,
+        "date_ref": date_ref,
         "time_from": time_from,
         "time_to": time_to,
     }
@@ -295,8 +309,13 @@ def _filter_and_process_orders(df: pd.DataFrame, wh: str, lane_filter: str = "L-
 
     return orders
 
-def _run_for_wh(wh: str, time_from: int, time_to: int, lane_filter: str = "L-VN11") -> Tuple[str, List[dict], str, dict]:
-    """Process data for a single warehouse"""
+def _run_for_wh(wh: str, time_from: int, time_to: int, lane_filter: str = "L-VN11", time_mode: str = "status") -> Tuple[str, List[dict], str, dict]:
+    """Process data for a single warehouse
+
+    Args:
+        time_mode: 'status' = filter orders with status=Created (default)
+                   'created' = filter orders by created_time in the time range
+    """
     try:
         if not UTILITY_AVAILABLE:
             # For testing without utility module
@@ -305,7 +324,17 @@ def _run_for_wh(wh: str, time_from: int, time_to: int, lane_filter: str = "L-VN1
         cookie = firebase_read_cookie_rtdb(wh, firebase_url)
         headers = build_api_headers(cookie)
 
-        df = _create_and_fetch_excel(headers, time_from, time_to, wh)
+        # Determine date_ref and status_list based on time_mode
+        if time_mode == 'created':
+            # Mode 2: Filter by created_time, get all statuses
+            date_ref = 1
+            status_list = []  # All statuses
+        else:
+            # Mode 1 (default): Filter by update_time, only status=Created
+            date_ref = 0
+            status_list = [0]  # Only Created status
+
+        df = _create_and_fetch_excel(headers, time_from, time_to, wh, date_ref=date_ref, status_list=status_list)
         orders = _filter_and_process_orders(df, wh, lane_filter)
 
         # Deduplicate orders by normalized WMS Order No while preserving order.
@@ -352,16 +381,20 @@ def api_sdd_fetch():
         time_from = req.get("time_from")
         time_to = req.get("time_to")
         lane_filter = req.get("lane_filter", "L-VN11").strip()
+        time_mode = req.get("time_mode", "status").strip()  # 'status' or 'created'
         if not lane_filter:
             lane_filter = "L-VN11"
+        if time_mode not in ["status", "created"]:
+            time_mode = "status"
 
         if not time_from or not time_to:
             return jsonify({"error": "time_from and time_to are required"}), 400
 
-        # Log time range
+        # Log time range and mode
         dfrom = datetime.fromtimestamp(time_from, TZ).strftime("%Y-%m-%d %H:%M:%S")
         dto = datetime.fromtimestamp(time_to, TZ).strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{req_id}] ⏱️ SDD Range: {dfrom} → {dto} (GMT+7)")
+        mode_desc = "created_time filter" if time_mode == "created" else "status=Created filter"
+        print(f"[{req_id}] ⏱️ SDD Range: {dfrom} → {dto} (GMT+7) | Mode: {mode_desc}")
 
         results = {}
         errors = {}
@@ -373,7 +406,7 @@ def api_sdd_fetch():
         start_time = time.time()
 
         with ThreadPoolExecutor(max_workers=len(WHS)) as exe:
-            futs = {exe.submit(_run_for_wh, wh, time_from, time_to, lane_filter): wh for wh in WHS}
+            futs = {exe.submit(_run_for_wh, wh, time_from, time_to, lane_filter, time_mode): wh for wh in WHS}
             try:
                 for fut in as_completed(futs, timeout=timeout_sec):
                     wh = futs[fut]

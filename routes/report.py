@@ -1,11 +1,57 @@
 import os
-from flask import Blueprint, request, jsonify, url_for
+import sys
+import requests
+import math
+import csv
+import io
+from datetime import datetime, timezone, timedelta
+from flask import Blueprint, request, jsonify, url_for, send_file
 
 from utils.firebase import rtdb
 from utils.timeutils import today_short
 from utils.report import build_report_message, create_excel_report
 from utils.seatalk import seatalk_text, seatalk_file
 from config import BASE_DIR
+
+# Import utility functions from parent directory for LH functionality
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+UTILITY_ROOT = os.path.dirname(PROJECT_ROOT)
+if UTILITY_ROOT not in sys.path:
+    sys.path.insert(0, UTILITY_ROOT)
+
+try:
+    from utility import build_api_headers, firebase_read_cookie_rtdb, firebase_url, get_daily_timestamps, convert_timestamp_to_day_time_gmt7
+    UTILITY_AVAILABLE = True
+except ImportError:
+    UTILITY_AVAILABLE = False
+    # Fallback implementations if utility module is not available
+    def build_api_headers(cookie=None):
+        headers = {
+            "content-type": "application/json",
+            "accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        if cookie:
+            headers["Cookie"] = cookie
+        return headers
+
+    def get_daily_timestamps():
+        now = datetime.now(timezone(timedelta(hours=7)))
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return int(start_of_day.timestamp()), int(end_of_day.timestamp())
+
+    def convert_timestamp_to_day_time_gmt7(timestamp):
+        if not timestamp:
+            return ""
+        dt = datetime.fromtimestamp(timestamp, tz=timezone(timedelta(hours=7)))
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    def firebase_read_cookie_rtdb(wh, url):
+        return ""
+
+    firebase_url = ""
 
 bp = Blueprint("report", __name__)
 
@@ -65,3 +111,257 @@ def api_report_run():
             "error": st_err
         }
     })
+
+
+@bp.get("/LH_report")
+def api_lh_report():
+    """
+    Get all LH (Last Hub) trips from SPX API
+    Based on LH.py functionality
+
+    Query params:
+        date: Optional date in YYYY-MM-DD format (default: today)
+
+    Returns:
+        JSON with list of trips including:
+        - id, trip_number, operator
+        - seal_time, loading_time
+        - load_quantity, vehicle_number, vehicle_type_name
+    """
+    WH = "SPX"
+
+    # Get date parameter (default to today)
+    date_param = request.args.get('date', '')
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get cookie: {str(e)}"
+        }), 500
+
+    headers = build_api_headers(cookie)
+
+    # Get daily timestamps
+    try:
+        if date_param:
+            # Parse date string (YYYY-MM-DD) and convert to timestamps
+            target_date = datetime.strptime(date_param, "%Y-%m-%d")
+            gmt7 = timezone(timedelta(hours=7))
+            start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=gmt7)
+            end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=gmt7)
+            from_time = int(start_of_day.timestamp())
+            to_time = int(end_of_day.timestamp())
+        else:
+            from_time, to_time = get_daily_timestamps()
+    except ValueError:
+        return jsonify({
+            "ok": False,
+            "error": "Invalid date format. Use YYYY-MM-DD"
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get timestamps: {str(e)}"
+        }), 500
+
+    # Build API URL
+    url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=24&mtime={from_time},{to_time}&middle_station=3983"
+
+    # Call API
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("retcode") == 0 and data.get("data"):
+            trips = []
+            for trip in data["data"]["list"]:
+                # Get station with sequence_number = 1
+                station = next((s for s in trip.get("trip_station", []) if s.get("sequence_number") == 1), {})
+                # Get station 2259 for load_quantity
+                station_2259 = next((s for s in trip.get("trip_station", []) if s.get("station") == 2259), {})
+
+                trips.append({
+                    "id": trip["id"],
+                    "trip_number": trip["trip_number"],
+                    "operator": trip.get("operator", ""),
+                    "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
+                    "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
+                    "load_quantity": station_2259.get("load_quantity", 0),
+                    "vehicle_number": trip.get("vehicle_number", ""),
+                    "vehicle_type_name": trip.get("vehicle_type_name", ""),
+                })
+
+            return jsonify({
+                "ok": True,
+                "total_trips": len(trips),
+                "trips": trips,
+                "from_time": from_time,
+                "to_time": to_time
+            })
+        else:
+            return jsonify({
+                "ok": False,
+                "error": data.get("message", "Unknown error from API"),
+                "retcode": data.get("retcode")
+            }), 400
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "ok": False,
+            "error": "API request timeout"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "ok": False,
+            "error": f"API request failed: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+
+@bp.get("/LH_get_list/<trip_id>/<trip_number>")
+def api_lh_get_list(trip_id, trip_number):
+    """
+    Get trip loading list details and return as CSV file
+    Based on GET_LIST.py functionality
+
+    Args:
+        trip_id: Trip ID to fetch details for
+        trip_number: Trip number for filename
+
+    Returns:
+        CSV file download with TO details
+    """
+    WH = "SPX"
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get cookie: {str(e)}"
+        }), 500
+
+    headers = build_api_headers(cookie)
+    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
+
+    try:
+        # First request to get total count
+        params = {
+            "trip_id": trip_id,
+            "pageno": 1,
+            "count": 50,
+            "loaded_sequence_number": 1,
+            "type": "outbound"
+        }
+
+        response = requests.get(base_url, params=params, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("retcode") != 0:
+            return jsonify({
+                "ok": False,
+                "error": data.get("message", "Unknown error from API")
+            }), 400
+
+        # Get pagination info
+        total = data["data"]["total"]
+        count = data["data"]["count"]
+        total_parcel = data["data"]["total_parcel"]
+        total_pages = math.ceil(total / count)
+
+        # Collect all data
+        all_data = []
+
+        # Add data from first page
+        for item in data["data"]["list"]:
+            all_data.append({
+                "to_number": item.get("to_number", ""),
+                "to_parcel_quantity": item.get("to_parcel_quantity", 0),
+                "pack_type_name": item.get("pack_type_name", ""),
+                "scan_number": item.get("scan_number", ""),
+                "operator": item.get("operator", ""),
+                "to_weight": round(item.get("to_weight", 0) / 1000, 3),
+                "ctime": item.get("ctime", 0)
+            })
+
+        # Fetch remaining pages
+        for page in range(2, total_pages + 1):
+            params["pageno"] = page
+            response = requests.get(base_url, params=params, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("retcode") != 0:
+                continue
+
+            for item in data["data"]["list"]:
+                all_data.append({
+                    "to_number": item.get("to_number", ""),
+                    "to_parcel_quantity": item.get("to_parcel_quantity", 0),
+                    "pack_type_name": item.get("pack_type_name", ""),
+                    "scan_number": item.get("scan_number", ""),
+                    "operator": item.get("operator", ""),
+                    "to_weight": round(item.get("to_weight", 0) / 1000, 2),
+                    "ctime": item.get("ctime", 0)
+                })
+
+        # Sort data by: to_parcel_quantity -> pack_type_name -> ctime
+        all_data.sort(key=lambda x: (x["to_parcel_quantity"], x["pack_type_name"], x["ctime"]))
+
+        # Convert ctime to GMT+7
+        gmt7 = timezone(timedelta(hours=7))
+        for item in all_data:
+            if item["ctime"] > 0:
+                dt = datetime.fromtimestamp(item["ctime"], tz=timezone.utc)
+                dt_gmt7 = dt.astimezone(gmt7)
+                item["ctime"] = dt_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                item["ctime"] = ""
+
+        # Create CSV in memory
+        output = io.StringIO()
+        fieldnames = ['to_number', 'to_parcel_quantity', 'pack_type_name', 'scan_number', 'operator', 'to_weight', 'ctime']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(all_data)
+
+        # Convert to bytes for download
+        csv_bytes = io.BytesIO()
+        csv_bytes.write(output.getvalue().encode('utf-8-sig'))
+        csv_bytes.seek(0)
+
+        # Generate filename
+        filename = f"{trip_number}_TO-{total}_PARCEL-{total_parcel}.csv"
+
+        return send_file(
+            csv_bytes,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "ok": False,
+            "error": "API request timeout"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "ok": False,
+            "error": f"API request failed: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500

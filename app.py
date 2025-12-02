@@ -203,12 +203,17 @@ def sdd():
     """SDD Tool page"""
     return render_template("tool_sdd.html")
 
+@app.route("/lh")
+def lh():
+    """LH Report Tool page"""
+    return render_template("tool_lh.html")
+
 # ───── Server ─────
 def run_flask():
     """Run Flask app with Waitress server (production) or Flask dev server (development)"""
     host = os.getenv("FLASK_HOST", "127.0.0.1")
     port = int(os.getenv("FLASK_PORT", "9090"))
-    threads = int(os.getenv("FLASK_THREADS", "15"))
+    threads = int(os.getenv("FLASK_THREADS", "6"))
 
     # Check if running in development mode
     dev_mode = os.getenv("FLASK_ENV", "development") == "development" or "--dev" in sys.argv

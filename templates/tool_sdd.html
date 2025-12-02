@@ -113,6 +113,8 @@
           <td class="order-cell">
             <div class="order-list" id="vndbDanangOrders">
               <!-- Orders will be populated here -->
+            </div>
+          </td>
           <td class="order-cell">
             <div class="order-list" id="vndbHueOrders">
               <!-- Orders will be populated here -->
@@ -586,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
   "use strict";
 
   // Check if user is authenticated (passed from backend via template)
-  const isAuthenticated = {{ 'true' if is_authenticated else 'false' }};
+  const isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}" === "true"
 
   function applyViewOnlyMode() {
     if (isAuthenticated) return;

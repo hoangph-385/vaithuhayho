@@ -18,6 +18,7 @@
         <a href="/handover" class="{% if request.path.startswith('/handover') %}active{% endif %}">Handover Tool</a>
         <a href="/scan" class="{% if request.path.startswith('/scan') %}active{% endif %}">Scan Tool</a>
         <a href="/sdd" class="{% if request.path.startswith('/sdd') %}active{% endif %}">SDD Tool</a>
+        <a href="/lh" class="{% if request.path.startswith('/lh') %}active{% endif %}">LH Report</a>
       </nav>
       <div style="display: flex; align-items: center; gap: 12px;">
         {% if is_authenticated %}
