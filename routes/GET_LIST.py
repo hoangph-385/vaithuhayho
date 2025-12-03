@@ -11,14 +11,70 @@ if sys.platform == 'win32':
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+UTILITY_ROOT = os.path.dirname(PROJECT_ROOT)
+if UTILITY_ROOT not in sys.path:
+    sys.path.insert(0, UTILITY_ROOT)
 
-from utility import build_api_headers, firebase_read_cookie_rtdb, firebase_url
+try:
+    from utility import build_api_headers, firebase_read_cookie_rtdb, firebase_url
+    UTILITY_AVAILABLE = True
+except ImportError:
+    UTILITY_AVAILABLE = False
+    # Fallback implementations
+    def build_api_headers(cookie=None):
+        headers = {
+            "content-type": "application/json",
+            "accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        if cookie:
+            headers["Cookie"] = cookie
+        return headers
+
+    def firebase_read_cookie_rtdb(wh, url):
+        return ""
+
+    firebase_url = ""
 
 WH = "SPX"
-cookie = firebase_read_cookie_rtdb(WH, firebase_url)
+cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
 headers = build_api_headers(cookie)
+
+def get_trip_id_from_trip_number(trip_number):
+    """
+    Tìm trip_id từ trip_number
+
+    Args:
+        trip_number: Trip number cần tìm
+
+    Returns:
+        trip_id nếu tìm thấy, None nếu không tìm thấy
+    """
+    try:
+        # Lấy timestamp cho hôm nay
+        now = datetime.now(timezone(timedelta(hours=7)))
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        from_time = int(start_of_day.timestamp())
+        to_time = int(end_of_day.timestamp())
+
+        url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=300&mtime={from_time},{to_time}&middle_station=3983"
+
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("retcode") == 0 and data.get("data"):
+            for trip in data["data"]["list"]:
+                if trip.get("trip_number") == trip_number:
+                    return trip.get("id")
+
+        print(f"Không tìm thấy trip_number: {trip_number}")
+        return None
+
+    except Exception as e:
+        print(f"Lỗi khi tìm trip_id: {e}")
+        return None
 
 def get_trip_data(trip_id, trip_number=None):
     """
@@ -117,15 +173,71 @@ def get_trip_data(trip_id, trip_number=None):
 
         # Thêm dữ liệu từ trang đầu tiên
         for item in data["data"]["list"]:
-            all_data.append({
-                "to_number": item.get("to_number", ""),
-                "to_parcel_quantity": item.get("to_parcel_quantity", 0),
-                "pack_type_name": item.get("pack_type_name", ""),
-                "scan_number": item.get("scan_number", ""),
-                "operator": item.get("operator", ""),
-                "to_weight": round(item.get("to_weight", 0) / 1000, 3),
-                "ctime": item.get("ctime", 0)
-            })
+            to_number = item.get("to_number", "")
+            pack_type_name = item.get("pack_type_name", "")
+            to_parcel_quantity = item.get("to_parcel_quantity", 0)
+            scan_number = item.get("scan_number", "")
+            operator = item.get("operator", "")
+            to_weight = round(item.get("to_weight", 0) / 1000, 3)
+            ctime = item.get("ctime", 0)
+
+            # Nếu to_parcel_quantity > 1, gọi API để lấy fleet_order_id và ghi từng dòng
+            if to_parcel_quantity > 1:
+                try:
+                    detail_url = "https://spx.shopee.vn/api/in-station/general_to/detail/search"
+                    detail_params = {
+                        "to_number": to_number,
+                        "pageno": 1,
+                        "count": 300
+                    }
+                    detail_resp = requests.get(detail_url, params=detail_params, headers=headers)
+                    detail_resp.raise_for_status()
+                    detail_json = detail_resp.json()
+                    if detail_json.get("retcode") == 0:
+                        lst = detail_json.get("data", {}).get("list", [])
+                        fleet_ids = [row.get("fleet_order_id", "") for row in lst if row.get("fleet_order_id")]
+                        # Ghi mỗi fleet_order_id thành 1 dòng riêng
+                        if fleet_ids:
+                            for fleet_id in fleet_ids:
+                                all_data.append({
+                                    "to_number": to_number,
+                                    "pack_type_name": pack_type_name,
+                                    "scan_number": fleet_id,
+                                    "operator": operator,
+                                    "to_weight": to_weight,
+                                    "ctime": ctime
+                                })
+                        else:
+                            # Không có fleet_id, ghi dòng gốc
+                            all_data.append({
+                                "to_number": to_number,
+                                "pack_type_name": pack_type_name,
+                                "scan_number": scan_number,
+                                "operator": operator,
+                                "to_weight": to_weight,
+                                "ctime": ctime
+                            })
+                except Exception as e:
+                    # Giữ nguyên dòng gốc nếu có lỗi
+                    print(f"Lỗi khi lấy chi tiết TO {to_number}: {e}")
+                    all_data.append({
+                        "to_number": to_number,
+                        "pack_type_name": pack_type_name,
+                        "scan_number": scan_number,
+                        "operator": operator,
+                        "to_weight": to_weight,
+                        "ctime": ctime
+                    })
+            else:
+                # to_parcel_quantity <= 1, pack_type_name = "Single"
+                all_data.append({
+                    "to_number": to_number,
+                    "pack_type_name": "Single",
+                    "scan_number": scan_number,
+                    "operator": operator,
+                    "to_weight": to_weight,
+                    "ctime": ctime
+                })
 
         # Lấy dữ liệu từ các trang còn lại
         for page in range(2, total_pages + 1):
@@ -141,18 +253,74 @@ def get_trip_data(trip_id, trip_number=None):
                 continue
 
             for item in data["data"]["list"]:
-                all_data.append({
-                    "to_number": item.get("to_number", ""),
-                    "to_parcel_quantity": item.get("to_parcel_quantity", 0),
-                    "pack_type_name": item.get("pack_type_name", ""),
-                    "scan_number": item.get("scan_number", ""),
-                    "operator": item.get("operator", ""),
-                    "to_weight": round(item.get("to_weight", 0) / 1000, 2),
-                    "ctime": item.get("ctime", 0)
-                })
+                to_number = item.get("to_number", "")
+                pack_type_name = item.get("pack_type_name", "")
+                to_parcel_quantity = item.get("to_parcel_quantity", 0)
+                scan_number = item.get("scan_number", "")
+                operator = item.get("operator", "")
+                to_weight = round(item.get("to_weight", 0) / 1000, 2)
+                ctime = item.get("ctime", 0)
 
-        # Sắp xếp dữ liệu theo: ctime -> to_parcel_quantity -> pack_type_name
-        all_data.sort(key=lambda x: (x["ctime"], x["to_parcel_quantity"], x["pack_type_name"]))
+                # Nếu to_parcel_quantity > 1, gọi API để lấy fleet_order_id và ghi từng dòng
+                if to_parcel_quantity > 1:
+                    try:
+                        detail_url = "https://spx.shopee.vn/api/in-station/general_to/detail/search"
+                        detail_params = {
+                            "to_number": to_number,
+                            "pageno": 1,
+                            "count": 300
+                        }
+                        detail_resp = requests.get(detail_url, params=detail_params, headers=headers)
+                        detail_resp.raise_for_status()
+                        detail_json = detail_resp.json()
+                        if detail_json.get("retcode") == 0:
+                            lst = detail_json.get("data", {}).get("list", [])
+                            fleet_ids = [row.get("fleet_order_id", "") for row in lst if row.get("fleet_order_id")]
+                            # Ghi mỗi fleet_order_id thành 1 dòng riêng
+                            if fleet_ids:
+                                for fleet_id in fleet_ids:
+                                    all_data.append({
+                                        "to_number": to_number,
+                                        "pack_type_name": pack_type_name,
+                                        "scan_number": fleet_id,
+                                        "operator": operator,
+                                        "to_weight": to_weight,
+                                        "ctime": ctime
+                                    })
+                            else:
+                                # Không có fleet_id, ghi dòng gốc
+                                all_data.append({
+                                    "to_number": to_number,
+                                    "pack_type_name": pack_type_name,
+                                    "scan_number": scan_number,
+                                    "operator": operator,
+                                    "to_weight": to_weight,
+                                    "ctime": ctime
+                                })
+                    except Exception as e:
+                        # Giữ nguyên dòng gốc nếu có lỗi
+                        print(f"Lỗi khi lấy chi tiết TO {to_number}: {e}")
+                        all_data.append({
+                            "to_number": to_number,
+                            "pack_type_name": pack_type_name,
+                            "scan_number": scan_number,
+                            "operator": operator,
+                            "to_weight": to_weight,
+                            "ctime": ctime
+                        })
+                else:
+                    # to_parcel_quantity <= 1, pack_type_name = "Single"
+                    all_data.append({
+                        "to_number": to_number,
+                        "pack_type_name": "Single",
+                        "scan_number": scan_number,
+                        "operator": operator,
+                        "to_weight": to_weight,
+                        "ctime": ctime
+                    })
+
+        # Sắp xếp dữ liệu theo: ctime -> pack_type_name
+        all_data.sort(key=lambda x: (x["ctime"], x["pack_type_name"]))
 
         # Convert ctime sang GMT+7
         gmt7 = timezone(timedelta(hours=7))
@@ -172,7 +340,7 @@ def get_trip_data(trip_id, trip_number=None):
 
         # Xuất ra file CSV
         with open(filename, 'w', newline='', encoding='utf-8-sig') as csvfile:
-            fieldnames = ['to_number', 'to_parcel_quantity', 'pack_type_name', 'scan_number', 'operator', 'to_weight', 'ctime']
+            fieldnames = ['to_number', 'pack_type_name', 'scan_number', 'operator', 'to_weight', 'ctime']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             writer.writeheader()
@@ -187,16 +355,33 @@ def get_trip_data(trip_id, trip_number=None):
         print(f"Lỗi: {e}")
 
 if __name__ == "__main__":
-    # Nhập trip_id từ người dùng hoặc sử dụng giá trị mặc định
+    # Nhập trip_id hoặc trip_number từ người dùng
+    input_value = None
     trip_number = None
+
     if len(sys.argv) > 1:
-        trip_id = sys.argv[1]
+        input_value = sys.argv[1]
         if len(sys.argv) > 2:
             trip_number = sys.argv[2]
     else:
-        trip_id = input("Nhập trip_id: ").strip()
+        input_value = input("Nhập trip_id hoặc trip_number: ").strip()
 
-    if trip_id:
-        get_trip_data(trip_id, trip_number)
+    if not input_value:
+        print("Vui lòng nhập trip_id hoặc trip_number!")
+        sys.exit(1)
+
+    # Kiểm tra xem input là trip_id (số) hay trip_number (chuỗi)
+    if input_value.isdigit():
+        # Là trip_id
+        trip_id = input_value
     else:
-        print("Vui lòng nhập trip_id!")
+        # Là trip_number - cần tìm trip_id
+        print(f"Đang tìm trip_id cho trip_number: {input_value}...")
+        trip_id = get_trip_id_from_trip_number(input_value)
+        if not trip_id:
+            print("Không thể tìm thấy trip_id!")
+            sys.exit(1)
+        trip_number = input_value
+        print(f"✓ Tìm thấy trip_id: {trip_id}")
+
+    get_trip_data(trip_id, trip_number)

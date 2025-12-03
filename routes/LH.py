@@ -39,7 +39,7 @@ def get_all_trips():
                 trips.append({
                     "id": trip["id"],
                     "trip_number": trip["trip_number"],
-                    "operator": trip.get("operator", ""),
+                    "driver_name": trip.get("driver_name", ""),
                     "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
                     "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
                     "load_quantity": station_2259.get("load_quantity", 0),
@@ -92,11 +92,11 @@ def main():
 
         # Hiển thị danh sách trips
         print(f"\n✓ Tìm thấy {len(trips)} trips:\n")
-        print(f"{'STT':<5} {'Trip Number':<18} {'Vehicle':<15} {'Type':<12} {'Load':<6} {'Operator':<25} {'Seal Time':<20}")
+        print(f"{'STT':<5} {'Trip Number':<18} {'Vehicle':<15} {'Type':<12} {'Load':<6} {'Driver':<25} {'Seal Time':<20}")
         print("-" * 120)
 
         for i, trip in enumerate(trips, 1):
-            print(f"{i:<5} {trip['trip_number']:<18} {trip['vehicle_number']:<15} {trip['vehicle_type_name']:<12} {trip['load_quantity']:<6} {trip['operator']:<25} {trip['seal_time']:<20}")
+            print(f"{i:<5} {trip['trip_number']:<18} {trip['vehicle_number']:<15} {trip['vehicle_type_name']:<12} {trip['load_quantity']:<6} {trip['driver_name']:<25} {trip['seal_time']:<20}")
 
         print("\n" + "=" * 60)
 

@@ -185,7 +185,7 @@ def api_lh_report():
                 trips.append({
                     "id": trip["id"],
                     "trip_number": trip["trip_number"],
-                    "operator": trip.get("operator", ""),
+                    "driver_name": trip.get("driver_name", ""),
                     "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
                     "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
                     "sequence_number": station.get("sequence_number", 1),
@@ -303,7 +303,7 @@ def api_lh_report_handover():
                 trips.append({
                     "id": trip["id"],
                     "trip_number": trip["trip_number"],
-                    "operator": trip.get("operator", ""),
+                    "driver_name": trip.get("driver_name", ""),
                     "seal_time": convert_timestamp_to_day_time_gmt7(station.get("seal_time")) if station.get("seal_time") else "",
                     "loading_time": convert_timestamp_to_day_time_gmt7(station.get("loading_time")) if station.get("loading_time") else "",
                     "sequence_number": station.get("sequence_number", 1),
@@ -487,15 +487,70 @@ def api_lh_get_list(trip_id, trip_number):
 
         # Add data from first page
         for item in data["data"]["list"]:
-            all_data.append({
-                "to_number": item.get("to_number", ""),
-                "to_parcel_quantity": item.get("to_parcel_quantity", 0),
-                "pack_type_name": item.get("pack_type_name", ""),
-                "scan_number": item.get("scan_number", ""),
-                "operator": item.get("operator", ""),
-                "to_weight": round(item.get("to_weight", 0) / 1000, 3),
-                "ctime": item.get("ctime", 0)
-            })
+            to_number = item.get("to_number", "")
+            pack_type_name = item.get("pack_type_name", "")
+            to_parcel_quantity = item.get("to_parcel_quantity", 0)
+            scan_number = item.get("scan_number", "")
+            operator = item.get("operator", "")
+            to_weight = round(item.get("to_weight", 0) / 1000, 3)
+            ctime = item.get("ctime", 0)
+
+            # Nếu to_parcel_quantity > 1, gọi API để lấy fleet_order_id và ghi từng dòng
+            if to_parcel_quantity > 1:
+                try:
+                    detail_url = "https://spx.shopee.vn/api/in-station/general_to/detail/search"
+                    detail_params = {
+                        "to_number": to_number,
+                        "pageno": 1,
+                        "count": 300
+                    }
+                    detail_resp = requests.get(detail_url, params=detail_params, headers=headers, timeout=30)
+                    detail_resp.raise_for_status()
+                    detail_json = detail_resp.json()
+                    if detail_json.get("retcode") == 0:
+                        lst = detail_json.get("data", {}).get("list", [])
+                        fleet_ids = [row.get("fleet_order_id", "") for row in lst if row.get("fleet_order_id")]
+                        # Ghi mỗi fleet_order_id thành 1 dòng riêng
+                        if fleet_ids:
+                            for fleet_id in fleet_ids:
+                                all_data.append({
+                                    "to_number": to_number,
+                                    "pack_type_name": pack_type_name,
+                                    "scan_number": fleet_id,
+                                    "operator": operator,
+                                    "to_weight": to_weight,
+                                    "ctime": ctime
+                                })
+                        else:
+                            # Không có fleet_id, ghi dòng gốc
+                            all_data.append({
+                                "to_number": to_number,
+                                "pack_type_name": pack_type_name,
+                                "scan_number": scan_number,
+                                "operator": operator,
+                                "to_weight": to_weight,
+                                "ctime": ctime
+                            })
+                except Exception:
+                    # Giữ nguyên dòng gốc nếu có lỗi
+                    all_data.append({
+                        "to_number": to_number,
+                        "pack_type_name": pack_type_name,
+                        "scan_number": scan_number,
+                        "operator": operator,
+                        "to_weight": to_weight,
+                        "ctime": ctime
+                    })
+            else:
+                # to_parcel_quantity <= 1, pack_type_name = "Single"
+                all_data.append({
+                    "to_number": to_number,
+                    "pack_type_name": "Single",
+                    "scan_number": scan_number,
+                    "operator": operator,
+                    "to_weight": to_weight,
+                    "ctime": ctime
+                })
 
         # Fetch remaining pages
         for page in range(2, total_pages + 1):
@@ -508,18 +563,73 @@ def api_lh_get_list(trip_id, trip_number):
                 continue
 
             for item in data["data"]["list"]:
-                all_data.append({
-                    "to_number": item.get("to_number", ""),
-                    "to_parcel_quantity": item.get("to_parcel_quantity", 0),
-                    "pack_type_name": item.get("pack_type_name", ""),
-                    "scan_number": item.get("scan_number", ""),
-                    "operator": item.get("operator", ""),
-                    "to_weight": round(item.get("to_weight", 0) / 1000, 2),
-                    "ctime": item.get("ctime", 0)
-                })
+                to_number = item.get("to_number", "")
+                pack_type_name = item.get("pack_type_name", "")
+                to_parcel_quantity = item.get("to_parcel_quantity", 0)
+                scan_number = item.get("scan_number", "")
+                operator = item.get("operator", "")
+                to_weight = round(item.get("to_weight", 0) / 1000, 2)
+                ctime = item.get("ctime", 0)
 
-        # Sort data by: ctime -> to_parcel_quantity -> pack_type_name
-        all_data.sort(key=lambda x: (x["ctime"], x["to_parcel_quantity"], x["pack_type_name"]))
+                # Nếu to_parcel_quantity > 1, gọi API để lấy fleet_order_id và ghi từng dòng
+                if to_parcel_quantity > 1:
+                    try:
+                        detail_url = "https://spx.shopee.vn/api/in-station/general_to/detail/search"
+                        detail_params = {
+                            "to_number": to_number,
+                            "pageno": 1,
+                            "count": 300
+                        }
+                        detail_resp = requests.get(detail_url, params=detail_params, headers=headers, timeout=30)
+                        detail_resp.raise_for_status()
+                        detail_json = detail_resp.json()
+                        if detail_json.get("retcode") == 0:
+                            lst = detail_json.get("data", {}).get("list", [])
+                            fleet_ids = [row.get("fleet_order_id", "") for row in lst if row.get("fleet_order_id")]
+                            # Ghi mỗi fleet_order_id thành 1 dòng riêng
+                            if fleet_ids:
+                                for fleet_id in fleet_ids:
+                                    all_data.append({
+                                        "to_number": to_number,
+                                        "pack_type_name": pack_type_name,
+                                        "scan_number": fleet_id,
+                                        "operator": operator,
+                                        "to_weight": to_weight,
+                                        "ctime": ctime
+                                    })
+                            else:
+                                # Không có fleet_id, ghi dòng gốc
+                                all_data.append({
+                                    "to_number": to_number,
+                                    "pack_type_name": pack_type_name,
+                                    "scan_number": scan_number,
+                                    "operator": operator,
+                                    "to_weight": to_weight,
+                                    "ctime": ctime
+                                })
+                    except Exception:
+                        # Giữ nguyên dòng gốc nếu có lỗi
+                        all_data.append({
+                            "to_number": to_number,
+                            "pack_type_name": pack_type_name,
+                            "scan_number": scan_number,
+                            "operator": operator,
+                            "to_weight": to_weight,
+                            "ctime": ctime
+                        })
+                else:
+                    # to_parcel_quantity <= 1, pack_type_name = "Single"
+                    all_data.append({
+                        "to_number": to_number,
+                        "pack_type_name": "Single",
+                        "scan_number": scan_number,
+                        "operator": operator,
+                        "to_weight": to_weight,
+                        "ctime": ctime
+                    })
+
+        # Sort data by: ctime -> pack_type_name
+        all_data.sort(key=lambda x: (x["ctime"], x["pack_type_name"]))
 
         # Convert ctime to GMT+7
         gmt7 = timezone(timedelta(hours=7))
@@ -533,7 +643,7 @@ def api_lh_get_list(trip_id, trip_number):
 
         # Create CSV in memory
         output = io.StringIO()
-        fieldnames = ['to_number', 'to_parcel_quantity', 'pack_type_name', 'scan_number', 'operator', 'to_weight', 'ctime']
+        fieldnames = ['to_number', 'pack_type_name', 'scan_number', 'operator', 'to_weight', 'ctime']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(all_data)
