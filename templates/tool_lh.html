@@ -17,7 +17,7 @@
     <input type="date" id="selectedDate" class="form-control" style="width: 180px;">
     <button id="btnFetchTrips" class="btn-action">Lấy dữ liệu</button>
     <div style="margin-left: auto; display: flex; align-items: center;">
-      <p style="margin: 0; font-size: 14px;"><strong></strong> <span id="cookieExpiry" style="color: #d9534f; font-weight: 700; font-size: 16px; margin-left: 20px;">--</span></p>
+      <p style="margin: 0; font-size: 14px;"><span id="cookieExpiry" style="color: #d9534f; font-weight: 700; font-size: 16px;">--</span> - <span id="spxDN" style="color: #0275d8; font-weight: 700; font-size: 16px;">--</span></p>
     </div>
   </div>
 </div>
@@ -450,7 +450,39 @@ async function downloadPDF(tripId, tripNumber, btn) {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
   }
-}// Event listeners
+}
+
+// Fetch and display SPX DN value
+async function updateSpxDN() {
+  try {
+    const response = await fetch('https://cookie-vnw-default-rtdb.firebaseio.com/SPX/value/cookie.json');
+    const cookieString = await response.text();
+
+    if (cookieString && cookieString !== 'null') {
+      // Remove quotes from the string
+      const cleanString = cookieString.replace(/^"|"$/g, '');
+
+      // Extract fms_display_name from cookie string
+      const match = cleanString.match(/fms_display_name=([^;]+)/);
+      if (match && match[1]) {
+        el("spxDN").textContent = match[1];
+        el("spxDN").style.color = '#0275d8'; // Blue color
+      } else {
+        el("spxDN").textContent = 'N/A';
+        el("spxDN").style.color = '#999';
+      }
+    } else {
+      el("spxDN").textContent = 'N/A';
+      el("spxDN").style.color = '#999';
+    }
+  } catch (error) {
+    console.warn("Could not fetch SPX DN:", error);
+    el("spxDN").textContent = 'Không thể lấy';
+    el("spxDN").style.color = '#999';
+  }
+}
+
+// Event listeners
 // Fetch and display cookie expiry time
 async function updateCookieExpiry() {
   try {
@@ -501,9 +533,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   el("btnFetchTrips").addEventListener("click", fetchTrips);
 
-  // Update cookie expiry on page load and every 5 seconds
+  // Update SPX DN and cookie expiry on page load and every 5 seconds
+  updateSpxDN();
   updateCookieExpiry();
-  setInterval(updateCookieExpiry, 5000);
+  setInterval(() => {
+    updateSpxDN();
+    updateCookieExpiry();
+  }, 5000);
 });
 </script>
 

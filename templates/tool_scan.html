@@ -1552,12 +1552,21 @@
 
   function renderDashboardList(raw){
     const flat=flattenRecords(raw);
-    // Always sort by gsheet_time_in (newest first), robust to empty/invalid strings
+    // Sort by shift first, then by gsheet_time_in (newest first within each shift)
     const num = (s)=>{
       const t = Date.parse(s || "");
       return Number.isFinite(t) ? t : 0;
     };
-    flat.sort((b,a)=> num(b.gsheet_time_in) - num(a.gsheet_time_in));
+    const parseShift = (s)=>{
+      const m = String(s||"").match(/(\d+):(\d+)/);
+      return m ? parseInt(m[1])*60 + parseInt(m[2]) : 0;
+    };
+    flat.sort((a,b)=> {
+      const shiftA = parseShift(a.shift_in);
+      const shiftB = parseShift(b.shift_in);
+      if(shiftA !== shiftB) return shiftA - shiftB;
+      return num(b.gsheet_time_in) - num(a.gsheet_time_in);
+    });
     DASH.rows = flat.map(normalizeDashRow);
     DASH.page = 1;
     applyDashFiltersAndRender();
