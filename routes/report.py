@@ -168,7 +168,7 @@ def api_lh_report():
         }), 500
 
     # Build API URL
-    url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=24&mtime={from_time},{to_time}&middle_station=3983"
+    url = f"https://spx.shopee.vn/api/admin/transportation/trip/history/list?loading_time={from_time},{to_time}&pageno=1&count=100&mtime={from_time},{to_time}&query_type=2&middle_station=3983"
 
     # Call API
     try:
@@ -228,16 +228,7 @@ def api_lh_report():
 
 @bp.get("/LH_report_handover")
 def api_lh_report_handover():
-    """
-    Get all LH (Last Hub) handover trips from SPX API
-    Similar to LH_report but with query_type=2 for handover trips
 
-    Query params:
-        date: Optional date in YYYY-MM-DD format (default: today)
-
-    Returns:
-        JSON with list of handover trips
-    """
     WH = "SPX"
 
     # Get date parameter (default to today)
@@ -277,12 +268,8 @@ def api_lh_report_handover():
             "error": f"Failed to get timestamps: {str(e)}"
         }), 500
 
-    # Build API URL with query_type=2 for handover trips
-    # Using trip/list endpoint (different from Outbound's trip/history/list)
-    # Note: mtime uses different range (earlier start time) compared to loading_time
-    # Based on user example: mtime start is 2 days (48h) before loading_time start
-    mtime_start = from_time - (48 * 3600)
-    url = f"https://spx.shopee.vn/api/admin/transportation/trip/list?loading_time={from_time},{to_time}&pageno=1&count=300&mtime={mtime_start},{to_time}&query_type=2&middle_station=3983"
+
+    url = f"https://spx.shopee.vn/api/admin/transportation/trip/list?loading_time={from_time},{to_time}&pageno=1&count=100&mtime={from_time},{to_time}&query_type=2&middle_station=3983"
 
     # Call API
     try:
@@ -346,22 +333,13 @@ def api_lh_report_handover():
 
 @bp.get("/LH_get_parcel_count/<trip_id>")
 def api_lh_get_parcel_count(trip_id):
-    """
-    Get total_parcel count for a specific trip
-
-    Args:
-        trip_id: Trip ID to fetch parcel count for
-
-    Query params:
-        seq: sequence_number (optional, default: 1)
-
-    Returns:
-        JSON with total_parcel count
-    """
     WH = "SPX"
 
-    # Get sequence_number from query params
+    # Get sequence_number and kind (default outbound) from query params
     sequence_number = request.args.get('seq', 1, type=int)
+    kind = request.args.get('kind', 'outbound').lower()
+    if kind not in ("outbound", "handover"):
+        return jsonify({"ok": False, "error": "Invalid kind. Use outbound or handover"}), 400
 
     # Get cookie from Firebase RTDB
     try:
@@ -374,14 +352,14 @@ def api_lh_get_parcel_count(trip_id):
 
     headers = build_api_headers(cookie)
 
-    # Get loading list with sequence_number
-    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
+    # Choose API based on kind: handover uses current loading, outbound uses history
+    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/loading/list" if kind == "handover" else "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
 
     try:
         params = {
             "trip_id": trip_id,
             "pageno": 1,
-            "count": 1,  # Only need first page to get total_parcel
+            "count": 50,  # Only need first page to get total_parcel
             "loaded_sequence_number": sequence_number,
             "type": "outbound"
         }
@@ -423,24 +401,13 @@ def api_lh_get_parcel_count(trip_id):
 
 @bp.get("/LH_get_list/<trip_id>/<trip_number>")
 def api_lh_get_list(trip_id, trip_number):
-    """
-    Get trip loading list details and return as CSV file
-    Based on GET_LIST.py functionality
-
-    Args:
-        trip_id: Trip ID to fetch details for
-        trip_number: Trip number for filename
-
-    Query params:
-        seq: sequence_number (optional, default: 1)
-
-    Returns:
-        CSV file download with TO details
-    """
     WH = "SPX"
 
-    # Get sequence_number from query params (đã được truyền từ frontend)
+    # Get sequence_number and kind from query params (kind defaults to outbound)
     sequence_number = request.args.get('seq', 1, type=int)
+    kind = request.args.get('kind', 'outbound').lower()
+    if kind not in ("outbound", "handover"):
+        return jsonify({"ok": False, "error": "Invalid kind. Use outbound or handover"}), 400
 
     # Get cookie from Firebase RTDB
     try:
@@ -453,8 +420,8 @@ def api_lh_get_list(trip_id, trip_number):
 
     headers = build_api_headers(cookie)
 
-    # Get loading list with sequence_number
-    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
+    # Select API: handover uses current loading list; outbound uses history loading list
+    base_url = "https://spx.shopee.vn/api/admin/transportation/trip/loading/list" if kind == "handover" else "https://spx.shopee.vn/api/admin/transportation/trip/history/loading/list"
 
     try:
         # First request to get total count
@@ -678,3 +645,58 @@ def api_lh_get_list(trip_id, trip_number):
             "ok": False,
             "error": f"Unexpected error: {str(e)}"
         }), 500
+
+
+@bp.get("/LH_run_sheet/<trip_id>")
+def api_lh_run_sheet(trip_id):
+    """Fetch run sheet URL for a trip, prioritize station_id=2259 by default."""
+    WH = "SPX"
+
+    station_id = request.args.get('station_id', 2259, type=int)
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Failed to get cookie: {str(e)}"}), 500
+
+    headers = build_api_headers(cookie)
+
+    url = "https://spx.shopee.vn/api/admin/transportation/run_sheet/list"
+
+    try:
+        resp = requests.get(url, params={"trip_id": trip_id}, headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get("retcode") != 0:
+            return jsonify({"ok": False, "error": data.get("message", "API error"), "retcode": data.get("retcode")}), 400
+
+        sheets = data.get("data", {}).get("list", []) or []
+
+        # Prefer matching station_id with sheet_url present
+        sheet = next((s for s in sheets if s.get("station_id") == station_id and s.get("sheet_url")), None)
+        if not sheet:
+            sheet = next((s for s in sheets if s.get("sheet_url")), None)
+
+        if not sheet or not sheet.get("sheet_url"):
+            return jsonify({"ok": False, "error": "No sheet_url found"}), 404
+
+        sheet_url = sheet.get("sheet_url", "")
+        download_url = f"https://spx.shopee.vn{sheet_url}" if sheet_url.startswith('/') else sheet_url
+
+        return jsonify({
+            "ok": True,
+            "download_url": download_url,
+            "sheet_url": sheet_url,
+            "station_id": sheet.get("station_id"),
+            "station_name": sheet.get("station_name"),
+            "sequence_number": sheet.get("sequence_number")
+        })
+
+    except requests.exceptions.Timeout:
+        return jsonify({"ok": False, "error": "API request timeout"}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({"ok": False, "error": f"API request failed: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"}), 500

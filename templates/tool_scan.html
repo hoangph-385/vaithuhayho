@@ -14,6 +14,11 @@
       <input id="dayPicker" type="date">
       <label>Warehouse</label>
       <select id="warehouse"><option>VNDB</option></select>
+      <label>Chế độ</label>
+      <select id="scanMode">
+        <option value="vanhanh">Vanhanh API</option>
+        <option value="firebase">Firebase VNDB</option>
+      </select>
       <label>Ca</label>
       <div class="row">
         <input id="hour" type="number" min="0" max="23">
@@ -1024,7 +1029,140 @@
     return data;
   }
 
-  async function fetchStaffByVendor(vendorCodeInput) {
+  async function fetchStaffFromVNDB(vendorCodeInput) {
+    // Lấy dữ liệu từ Firebase VNDB database
+    // Input có thể là:
+    //   - Vendor code: SPAGR01355
+    //   - URL: https://vanhanh.shopee.vn/spx-ops/wh/SPAGR01355
+    // Cấu trúc: { vendor_code1: { "birth_year": "...", "fullname": "...", "wfm_code": "..." }, ... }
+    const firebaseUrl = "https://data-bpo-default-rtdb.asia-southeast1.firebasedatabase.app/VNDB";
+
+    try {
+      // Cắt vendor code từ input
+      const normalized = normalizeVendorOrQR(vendorCodeInput);
+      const vendorCode = toVendorCode(normalized);
+
+      if (!vendorCode) throw new Error("Vendor code trống");
+
+      const vendorCodeUpper = vendorCode.toUpperCase();
+      console.log('[fetchStaffFromVNDB] Tìm kiếm vendor:', vendorCodeUpper);
+
+      // Fetch toàn bộ VNDB data
+      const url = `${firebaseUrl}.json`;
+      const r = await fetch(url, { method: "GET", timeout: 15000 });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+      const vndbData = await r.json();
+      if (!vndbData || typeof vndbData !== 'object') {
+        throw new Error("Không có dữ liệu trong VNDB");
+      }
+
+      // Tìm vendor_code trong cấu trúc
+      // VNDB structure: { "SPAGR01355": { "birth_year": "...", "fullname": "...", "wfm_code": "..." } }
+      let staffData = null;
+
+      // Duyệt qua tất cả keys để tìm vendor code (case-insensitive)
+      for (const [key, value] of Object.entries(vndbData)) {
+        if (key.toUpperCase() === vendorCodeUpper && typeof value === 'object' && value !== null) {
+          staffData = value;
+          console.log('[fetchStaffFromVNDB] ✓ Tìm thấy vendor:', key);
+          break;
+        }
+      }
+
+      if (!staffData) {
+        console.warn('[fetchStaffFromVNDB] ✗ Không tìm thấy vendor:', vendorCodeUpper);
+        const sampleVendors = Object.keys(vndbData).slice(0, 5);
+        console.warn('[fetchStaffFromVNDB] Sample vendors:', sampleVendors);
+        throw new Error(`Không tìm thấy vendor code "${vendorCode}" trong VNDB`);
+      }
+
+      const info = {
+        full_name:  staffData.fullname || "",
+        contractor: staffData.vendor_name || "",
+        gender:     staffData.gender || "",
+        birth_year: staffData.birth_year || "",
+        staff_id:   vendorCodeUpper, // Dùng vendor code đã cắt
+      };
+
+      const staff_no = staffData.wfm_code || "";
+
+      console.log('[fetchStaffFromVNDB] ✓ Record tìm được:', { staff_no, info });
+
+      return { staff_no, info, img_url: "" };
+    } catch (e) {
+      console.error('[fetchStaffFromVNDB]', e);
+      throw new Error(`Firebase VNDB: ${e.message || e}`);
+    }
+  }  async function fetchStaffFromScanToolByDate(wfmCode, dateStr) {
+    // Lấy dữ liệu từ data-scan-tool database
+    // Cấu trúc: { date: { shift_time: { vendor: { wfm: record } } } }
+    // ⚠️ QUAN TRỌNG: WFM code phải là định dạng S0xxxxx (ví dụ: S098480)
+    //    KHÔNG phải vendor_code (ví dụ: SPAGR01225)
+    const firebaseUrl = "https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app/VNDB";
+
+    try {
+      // Fetch toàn bộ dữ liệu VNDB
+      const url = `${firebaseUrl}.json`;
+      const r = await fetch(url, { method: "GET" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+      const allData = await r.json();
+      if (!allData || typeof allData !== 'object') {
+        throw new Error("Không có dữ liệu trong data-scan-tool");
+      }
+
+      const wfmUpper = wfmCode.toUpperCase();
+      console.log('[fetchStaffFromScanToolByDate] Tìm kiếm WFM:', wfmUpper);
+
+      // Duyệt qua tất cả dates
+      for (const [date, dateData] of Object.entries(allData)) {
+        if (!dateData || typeof dateData !== 'object') continue;
+
+        // Duyệt qua tất cả shifts trong ngày
+        for (const [shift, shiftData] of Object.entries(dateData)) {
+          if (!shiftData || typeof shiftData !== 'object') continue;
+
+          // Duyệt qua tất cả vendors
+          for (const [vendor, staffGroup] of Object.entries(shiftData)) {
+            if (!staffGroup || typeof staffGroup !== 'object') continue;
+
+            // Duyệt qua tất cả WFM codes và tìm match
+            for (const [wfm, record] of Object.entries(staffGroup)) {
+              if (wfm.toUpperCase() === wfmUpper && record && typeof record === 'object') {
+                console.log('[fetchStaffFromScanToolByDate] ✓ Tìm thấy tại:', { date, shift, vendor, wfm });
+                console.log('[fetchStaffFromScanToolByDate] Record:', record);
+                return record;
+              }
+            }
+          }
+        }
+      }
+
+      // Nếu không tìm thấy, show các WFMs có sẵn để debug
+      console.warn('[fetchStaffFromScanToolByDate] ✗ Không tìm thấy WFM:', wfmUpper);
+
+      // Lấy một số WFM từ database để debug
+      const debugWfms = [];
+      for (const dateData of Object.values(allData).slice(0, 1)) {
+        for (const shiftData of Object.values(dateData || {}).slice(0, 1)) {
+          for (const staffGroup of Object.values(shiftData || {}).slice(0, 2)) {
+            if (staffGroup) {
+              debugWfms.push(...Object.keys(staffGroup).slice(0, 3));
+            }
+          }
+        }
+      }
+
+      console.warn('[fetchStaffFromScanToolByDate] ⚠ Định dạng WFM phải là S0xxxxx (ví dụ: S098480)');
+      console.warn('[fetchStaffFromScanToolByDate] Sample WFMs từ DB:', debugWfms);
+
+      throw new Error(`Không tìm thấy WFM code "${wfmCode}" trong data-scan-tool. Sử dụng định dạng S0xxxxx (ví dụ: S098480)`);
+    } catch (e) {
+      console.error('[fetchStaffFromScanToolByDate]', e);
+      throw new Error(`Data-scan-tool: ${e.message || e}`);
+    }
+  }  async function fetchStaffByVendor(vendorCodeInput) {
     // Cho phép nhập SP******** hoặc URL
     const normalized = normalizeVendorOrQR(vendorCodeInput);
     const vendorCode = toVendorCode(normalized);
@@ -1078,9 +1216,21 @@
       };
     }
 
-    // Còn lại coi như QR / vendor, dùng vanhanh như cũ
+    // Kiểm tra chế độ hiện tại
+    const scanMode = el("scanMode")?.value || "vanhanh";
+
+    // Còn lại coi như QR / vendor, dùng mode được chọn
     try {
-      const data = await fetchStaffByVendor(code);
+      let data;
+
+      if (scanMode === "firebase") {
+        // Mode Firebase: lấy từ VNDB database
+        data = await fetchStaffFromVNDB(code);
+      } else {
+        // Mode Vanhanh: lấy từ API như cũ
+        data = await fetchStaffByVendor(code);
+      }
+
       window.currentStaff = data;
 
       // ❌ KHÔNG cho phép scan nếu không có staff_no (WFM code)
@@ -1162,6 +1312,17 @@
     el(`${prefix}-birth`).textContent       =(info.birth_year||"");
     const imgEl = el(`${prefix}-avatar`);
     if (imgEl) imgEl.src = img || "";
+  }
+
+  // Update UI từ Firebase record (sau scan in, khi lấy lại từ RTDB)
+  function setPersonUIFromRecord(prefix, rec) {
+    if (!rec) return;
+    el(`${prefix}-fullname`).textContent    =(rec.fullname||"").toUpperCase();
+    el(`${prefix}-vendor`).textContent      =(rec.vendor_name||"").toUpperCase();
+    el(`${prefix}-vendor-code`).textContent =(rec.vendor_code||"").toUpperCase();
+    el(`${prefix}-gender`).textContent      =(rec.gender||"").toUpperCase();
+    el(`${prefix}-birth`).textContent       =(rec.birth_year||"");
+    // Avatar không có trong record, nên không update
   }
 
   function renderInCounters(stats){
@@ -1541,7 +1702,9 @@
       }
 
       // Optional QA verification: don't mark scanned unless QA API confirms
-      if (CONFIG.ENABLE_QA_CHECK) {
+      // ⚠️ Bỏ qua QA check khi ở chế độ Firebase (vanhanh API không tồn tại)
+      const scanMode = el("scanMode")?.value || "vanhanh";
+      if (CONFIG.ENABLE_QA_CHECK && scanMode !== "firebase") {
         try {
           const qa = await callWms('/wms/verify_scan', { vendor_url: wfmText, staff_no });
           if (!qa || qa.ok !== true) {
@@ -1557,6 +1720,7 @@
       }
 
       // Gọi attendance & activity khi đã có staff_no
+      // ⚠️ Khi ở chế độ Firebase, staff_no là wfm_code (S098373)
       await callWms("/wms/attendance", { warehouse: wh, type: 1, staff_no });
       const act = await callWms("/wms/activity", { warehouse: wh, staff_no, act_no: "A0020" });
       const operator    = act?.data?.staff_name || "";
@@ -1636,10 +1800,34 @@
         return;
       }
 
-      // ---- Fetch RTDB 1 lần, tìm record trong ngày
-      const raw  = await fetchRTDBAll(wh, todayKey());
-      const flat = flattenRecords(raw);
-      const rec  = findTodayRec(flat, staff_no);
+      // Kiểm tra chế độ: nếu Firebase, lấy từ Firebase RTDB; nếu không lấy từ RTDB hiện tại như cũ
+      const scanMode = el("scanMode")?.value || "vanhanh";
+      let rec = null;
+
+      if (scanMode === "firebase") {
+        // Mode Firebase: lấy từ Firebase RTDB của ngày hôm nay (data đã scan in)
+        try {
+          const raw  = await fetchRTDBAll(wh, todayKey());
+          const flat = flattenRecords(raw);
+          rec  = findTodayRec(flat, staff_no);
+
+          if (!rec) {
+            throw new Error(`Không tìm thấy staff ${staff_no} trong Firebase - chưa scan in`);
+          }
+
+          // Update UI từ Firebase record thay vì VNDB
+          setPersonUIFromRecord("task", rec);
+        } catch (e) {
+          notice(`Lỗi lấy dữ liệu Firebase: ${e.message}`, "error", 5000);
+          playSysErr();
+          return;
+        }
+      } else {
+        // Mode Vanhanh: lấy từ RTDB hiện tại
+        const raw  = await fetchRTDBAll(wh, todayKey());
+        const flat = flattenRecords(raw);
+        rec  = findTodayRec(flat, staff_no);
+      }
 
       // Helper cục bộ
       const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
@@ -1749,11 +1937,37 @@
         notice("Không lấy được WFM từ vendor. Vui lòng kiểm tra mã/QR hoặc thử lại.", "error", 5000);
         playSysErr();
         el("out-wfm").value = ""; safeFocus("out-wfm");
-        return;}
+        return;
+      }
 
-      const raw  = await fetchRTDBAll(wh, todayKey());
-      const flat = flattenRecords(raw);
-      const rec  = findTodayRec(flat, staff_no);
+      // Kiểm tra chế độ: nếu Firebase, lấy từ Firebase RTDB; nếu không lấy từ RTDB hiện tại như cũ
+      const scanMode = el("scanMode")?.value || "vanhanh";
+      let rec = null;
+
+      if (scanMode === "firebase") {
+        // Mode Firebase: lấy từ Firebase RTDB của ngày hôm nay (data đã scan in)
+        try {
+          const raw  = await fetchRTDBAll(wh, todayKey());
+          const flat = flattenRecords(raw);
+          rec  = findTodayRec(flat, staff_no);
+
+          if (!rec) {
+            throw new Error(`Không tìm thấy staff ${staff_no} trong Firebase - chưa scan in`);
+          }
+
+          // Update UI từ Firebase record thay vì VNDB
+          setPersonUIFromRecord("out", rec);
+        } catch (e) {
+          notice(`Lỗi lấy dữ liệu Firebase: ${e.message}`, "error", 5000);
+          playSysErr();
+          return;
+        }
+      } else {
+        // Mode Vanhanh: lấy từ RTDB hiện tại
+        const raw  = await fetchRTDBAll(wh, todayKey());
+        const flat = flattenRecords(raw);
+        rec  = findTodayRec(flat, staff_no);
+      }
 
       // helper
       const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
@@ -1875,6 +2089,14 @@
 
   /* ====================== INIT ====================== */
   function bindEvents(){
+    // Scan Mode selector - lưu lựa chọn vào localStorage
+    el("scanMode")?.addEventListener('change', (e)=>{
+      const mode = e.target.value;
+      localStorage.setItem('scanMode', mode);
+      console.log('[ScanMode] Changed to:', mode);
+      notice(`Chế độ scan: ${mode === 'firebase' ? 'Firebase VNDB' : 'Vanhanh API'}`, 'info', 2000);
+    });
+
     // Tabs
     const tabs = el('tabs');
     tabs?.addEventListener('click', (e)=>{
@@ -1943,6 +2165,13 @@
     el("filterClear")?.addEventListener('click', clearCurrentFilter);
     el("filterApply")?.addEventListener('click', applyCurrentFilter);
     el("filterSearch")?.addEventListener('input', filterSearchOptions);
+
+    // Edit Modal handlers
+    el("editCancel")?.addEventListener('click', hideEditModal);
+    el("editModal")?.addEventListener('click', (e)=>{
+      if(e.target === el("editModal")) hideEditModal();
+    });
+    el("editSave")?.addEventListener('click', saveEditForm);
 
   }
 
@@ -2067,6 +2296,136 @@
     });
   }
 
+  // ===== Edit Modal Functions =====
+  let EDIT_CONTEXT = null; // Store context for current edit operation
+
+  function showEditModal(rowData) {
+    if (!rowData) return;
+
+    EDIT_CONTEXT = JSON.parse(JSON.stringify(rowData)); // Deep copy
+
+    // Populate form fields
+    el("edit-vendor_name").value = rowData.vendor_name || "";
+    el("edit-vendor_code").value = rowData.vendor_code || "";
+    el("edit-wfm_code").value = rowData.wfm_code || "";
+    el("edit-wms_user_id").value = rowData.wms_user_id || "";
+    el("edit-fullname").value = rowData.fullname || "";
+    el("edit-gender").value = rowData.gender || "";
+    el("edit-birth_year").value = rowData.birth_year || "";
+
+    el("editModal").classList.add('show');
+    safeFocus("edit-vendor_name");
+  }
+
+  function hideEditModal() {
+    el("editModal").classList.remove('show');
+    EDIT_CONTEXT = null;
+  }
+
+  async function saveEditForm() {
+    if (!EDIT_CONTEXT) {
+      notice("Không có dữ liệu để lưu", "error", 3000);
+      return;
+    }
+
+    const wh = el('warehouse')?.value || 'VNDB';
+    const dp = el('dayPicker');
+    const day = (dp?.value && /^\d{4}-\d{2}-\d{2}$/.test(dp.value)) ? dp.value : todayKey();
+
+    // Get form values
+    const newData = {
+      vendor_name: el("edit-vendor_name").value.trim().toUpperCase() || EDIT_CONTEXT.vendor_name,
+      vendor_code: el("edit-vendor_code").value.trim().toUpperCase() || EDIT_CONTEXT.vendor_code,
+      wms_user_id: el("edit-wms_user_id").value.trim(),
+      fullname: el("edit-fullname").value.trim().toUpperCase(),
+      gender: normalizeGender(el("edit-gender").value),
+      birth_year: el("edit-birth_year").value.trim()
+    };
+
+    // Validate required fields
+    if (!newData.fullname) {
+      notice("Vui lòng nhập Họ và tên", "error", 3000);
+      safeFocus("edit-fullname");
+      return;
+    }
+
+    const oldShift = EDIT_CONTEXT.shift_in || EDIT_CONTEXT.shift || '';
+    const oldVendor = EDIT_CONTEXT.vendor_name || "Other";
+    const wfm = (EDIT_CONTEXT.wfm_code || '').toUpperCase();
+
+    if (!wfm || !oldShift) {
+      notice("Không đủ thông tin để lưu", "error", 3000);
+      return;
+    }
+
+    try {
+      // 1. Fetch current record
+      const oldUrl = rtdbRecPath(wh, day, oldShift, oldVendor, wfm);
+      const getResp = await fetch(oldUrl);
+      const currentRecord = await getResp.json();
+
+      if (!currentRecord) {
+        notice("Không tìm thấy record để cập nhật", "error", 3000);
+        return;
+      }
+
+      // 2. Create updated record with new vendor_name (which creates a "link" to vendor node)
+      const updatedRecord = {
+        ...currentRecord,
+        vendor_name: newData.vendor_name,
+        vendor_code: newData.vendor_code,
+        wms_user_id: newData.wms_user_id,
+        fullname: newData.fullname,
+        gender: newData.gender,
+        birth_year: newData.birth_year
+      };
+
+      // 3. Check if vendor_name changed - if so, move record to new vendor node
+      if (newData.vendor_name !== oldVendor) {
+        // Write to new vendor node
+        const newUrl = rtdbRecPath(wh, day, oldShift, newData.vendor_name, wfm);
+        await fetch(newUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedRecord)
+        });
+
+        // Delete from old vendor node
+        await fetch(oldUrl, { method: "DELETE" });
+
+        notice(`✅ Đã cập nhật và chuyển nhân viên sang Nhà Thầu: ${newData.vendor_name}`, "success", 4000);
+      } else {
+        // Just update fields in same vendor node
+        const patch = {
+          wms_user_id: newData.wms_user_id,
+          fullname: newData.fullname,
+          gender: newData.gender,
+          birth_year: newData.birth_year,
+          vendor_code: newData.vendor_code
+        };
+
+        await fetch(oldUrl, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch)
+        });
+
+        notice("✅ Đã cập nhật thông tin nhân viên", "success", 4000);
+      }
+
+      // Update local row
+      for (const [key, value] of Object.entries(newData)) {
+        EDIT_CONTEXT[key] = value;
+      }
+
+      hideEditModal();
+      // Realtime update will refresh dashboard automatically
+    } catch (e) {
+      console.error(e);
+      notice(`Lưu thất bại: ${e.message || e}`, "error", 4000);
+    }
+  }
+
   function toggleEditMode(){
     const current = document.body.dataset.editMode === "1";
     const btn = el('btnEditMode');
@@ -2188,6 +2547,50 @@
           applyDashFiltersAndRender();
 
           notice("✅ Đã di chuyển record sang ca mới", "success", 3000);
+        } else if(field === 'vendor_name') {
+          // Special handling for vendor_name: move record to new vendor node
+          const newVendor = newValue.trim().toUpperCase() || vendorName;
+          if(!newVendor) {
+            notice("Nhà thầu không được để trống", "error", 3000);
+            td.textContent = originalText;
+            return;
+          }
+
+          // 1. Fetch current record from old vendor node
+          const oldUrl = rtdbRecPath(wh, day, oldShift, vendorName, wfm);
+          const getResp = await fetch(oldUrl);
+          const currentRecord = await getResp.json();
+
+          if(!currentRecord) {
+            notice("Không tìm thấy record để di chuyển", "error", 3000);
+            td.textContent = originalText;
+            return;
+          }
+
+          // 2. Create updated record with new vendor_name
+          const updatedRecord = { ...currentRecord, vendor_name: newVendor };
+
+          // 3. Write to new vendor node
+          const newUrl = rtdbRecPath(wh, day, oldShift, newVendor, wfm);
+          await fetch(newUrl, {
+            method: "PUT",
+            headers: { "Content-Type":"application/json" },
+            body: JSON.stringify(updatedRecord)
+          });
+
+          // 4. Delete from old vendor node
+          await fetch(oldUrl, { method: "DELETE" });
+
+          // 5. Update local row data
+          row.vendor_name = newVendor;
+          td.textContent = newVendor;
+          td.style.background = '#d4edda';
+          setTimeout(() => td.style.background = '', 800);
+
+          // 6. Re-sort and re-render dashboard to reflect new vendor
+          applyDashFiltersAndRender();
+
+          notice("✅ Đã di chuyển nhân viên sang Nhà Thầu: " + newVendor, "success", 3000);
         } else {
           // Normal field update: just PATCH
           const patch = { [field]: newValue };
@@ -2269,6 +2672,11 @@
     const {h,use30}=ceilToNext15();
     el("hour").value = h;
     el("minute").value = use30;
+
+    // Restore scan mode from localStorage
+    const savedMode = localStorage.getItem('scanMode') || 'vanhanh';
+    el("scanMode").value = savedMode;
+
     notice("Dữ liệu đã sẵn sàng!", "success", 2000);
     scheduleShiftAutoAdvance();
     setActiveTab('scan');
@@ -2321,6 +2729,18 @@
     }
   });
 
+  // Expose debug function để test Firebase
+  window.testFirebaseWFM = async function(wfmCode) {
+    try {
+      console.log('[DEBUG] Testing Firebase với WFM:', wfmCode);
+      const result = await fetchStaffFromScanToolByDate(wfmCode, todayKey());
+      console.log('[DEBUG] ✓ Tìm thấy record:', result);
+      return result;
+    } catch (e) {
+      console.error('[DEBUG] ✗ Lỗi:', e.message);
+      throw e;
+    }
+  };
 
 })();
 </script>
