@@ -1200,20 +1200,83 @@
     const code = (inputCode || "").trim();
     if (!code) throw new Error("Mã trống");
 
-    // Nếu người dùng nhập trực tiếp mã WFM (S + 6 số) thì bỏ qua vanhanh,
-    // trả về cấu trúc tối thiểu để các hàm scan dùng luôn.
+    // Nếu người dùng nhập trực tiếp mã WFM (S + 6 số)
+    // Tự động tìm kiếm thông tin từ Firebase VNDB
     if (WFM_RE.test(code)) {
-      return {
-        staff_no: code.toUpperCase(),
-        info: {
-          full_name:  "",
-          contractor: "",
-          gender:     "",
-          birth_year: "",
-          staff_id:   ""
-        },
-        img_url: ""
-      };
+      const wfmUpper = code.toUpperCase();
+      console.log('[parseQR] Nhập mã WFM trực tiếp:', wfmUpper);
+
+      try {
+        // Tìm kiếm trong Firebase VNDB bằng WFM code
+        const firebaseUrl = "https://data-bpo-default-rtdb.asia-southeast1.firebasedatabase.app/VNDB";
+        const url = `${firebaseUrl}.json`;
+        const r = await fetch(url, { method: "GET", timeout: 15000 });
+
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+        const vndbData = await r.json();
+        if (!vndbData || typeof vndbData !== 'object') {
+          throw new Error("Không có dữ liệu trong VNDB");
+        }
+
+        // Tìm record có wfm_code khớp
+        let foundRecord = null;
+        let foundVendorCode = "";
+
+        for (const [vendorCode, record] of Object.entries(vndbData)) {
+          if (record && typeof record === 'object' &&
+              record.wfm_code &&
+              record.wfm_code.toUpperCase() === wfmUpper) {
+            foundRecord = record;
+            foundVendorCode = vendorCode;
+            console.log('[parseQR] ✓ Tìm thấy thông tin WFM trong VNDB:', vendorCode);
+            break;
+          }
+        }
+
+        if (foundRecord) {
+          // Tìm thấy - trả về đầy đủ thông tin
+          return {
+            staff_no: wfmUpper,
+            info: {
+              full_name:  foundRecord.fullname || "",
+              contractor: foundRecord.vendor_name || "",
+              gender:     foundRecord.gender || "",
+              birth_year: foundRecord.birth_year || "",
+              staff_id:   foundVendorCode
+            },
+            img_url: ""
+          };
+        } else {
+          // Không tìm thấy - trả về cấu trúc tối thiểu
+          console.warn('[parseQR] ⚠ Không tìm thấy WFM trong VNDB, dùng cấu trúc tối thiểu');
+          return {
+            staff_no: wfmUpper,
+            info: {
+              full_name:  "",
+              contractor: "",
+              gender:     "",
+              birth_year: "",
+              staff_id:   ""
+            },
+            img_url: ""
+          };
+        }
+      } catch (e) {
+        console.error('[parseQR] Lỗi tìm kiếm Firebase:', e);
+        // Fallback về cấu trúc tối thiểu nếu có lỗi
+        return {
+          staff_no: wfmUpper,
+          info: {
+            full_name:  "",
+            contractor: "",
+            gender:     "",
+            birth_year: "",
+            staff_id:   ""
+          },
+          img_url: ""
+        };
+      }
     }
 
     // Kiểm tra chế độ hiện tại
