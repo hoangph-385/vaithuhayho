@@ -446,7 +446,7 @@ def api_lh_get_list(trip_id, trip_number):
         # Get pagination info
         total = data["data"]["total"]
         count = data["data"]["count"]
-        total_parcel = data["data"]["total_parcel"]
+        total_parcel = data["data"].get("total_parcel", 0)
         total_pages = math.ceil(total / count)
 
         # Collect all data
@@ -620,8 +620,13 @@ def api_lh_get_list(trip_id, trip_number):
         csv_bytes.write(output.getvalue().encode('utf-8-sig'))
         csv_bytes.seek(0)
 
-        # Generate filename
-        filename = f"{trip_number}_TO-{total}_PARCEL-{total_parcel}.csv"
+        # Prefer FE-supplied counts (what user sees) for filename; fall back to API totals
+        fe_to_qty = request.args.get('to_qty', type=int)
+        fe_parcel_qty = request.args.get('parcel_qty', type=int)
+        filename_to = fe_to_qty if fe_to_qty is not None else total
+        filename_parcel = fe_parcel_qty if fe_parcel_qty is not None else total_parcel
+        # Short name to align with Excel tab: <trip>_<TO>_<PARCEL>.csv
+        filename = f"{trip_number}_{filename_to}_{filename_parcel}.csv"
 
         return send_file(
             csv_bytes,
@@ -693,6 +698,73 @@ def api_lh_run_sheet(trip_id):
             "station_name": sheet.get("station_name"),
             "sequence_number": sheet.get("sequence_number")
         })
+
+    except requests.exceptions.Timeout:
+        return jsonify({"ok": False, "error": "API request timeout"}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({"ok": False, "error": f"API request failed: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"}), 500
+
+
+@bp.get("/LH_download_pdf/<trip_id>")
+def api_lh_download_pdf(trip_id):
+    """Proxy PDF download to avoid CORS issues. Fetches sheet URL then streams PDF."""
+    WH = "SPX"
+
+    station_id = request.args.get('station_id', 2259, type=int)
+
+    # Get cookie from Firebase RTDB
+    try:
+        cookie = firebase_read_cookie_rtdb(WH, firebase_url) if UTILITY_AVAILABLE else ""
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Failed to get cookie: {str(e)}"}), 500
+
+    headers = build_api_headers(cookie)
+
+    url = "https://spx.shopee.vn/api/admin/transportation/run_sheet/list"
+
+    try:
+        # First, get the sheet URL
+        resp = requests.get(url, params={"trip_id": trip_id}, headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get("retcode") != 0:
+            return jsonify({"ok": False, "error": data.get("message", "API error")}), 400
+
+        sheets = data.get("data", {}).get("list", []) or []
+
+        # Prefer matching station_id with sheet_url present
+        sheet = next((s for s in sheets if s.get("station_id") == station_id and s.get("sheet_url")), None)
+        if not sheet:
+            sheet = next((s for s in sheets if s.get("sheet_url")), None)
+
+        if not sheet or not sheet.get("sheet_url"):
+            return jsonify({"ok": False, "error": "No sheet_url found"}), 404
+
+        sheet_url = sheet.get("sheet_url", "")
+        download_url = f"https://spx.shopee.vn{sheet_url}" if sheet_url.startswith('/') else sheet_url
+
+        # Now fetch the PDF and stream it
+        pdf_resp = requests.get(download_url, headers=headers, timeout=30, stream=True)
+        pdf_resp.raise_for_status()
+
+        # Extract filename from URL or use default
+        filename = download_url.split('/')[-1] if '/' in download_url else f"trip_{trip_id}.pdf"
+        if not filename.endswith('.pdf'):
+            filename = f"{filename}.pdf"
+
+        # Stream the PDF back to client
+        pdf_bytes = io.BytesIO(pdf_resp.content)
+        pdf_bytes.seek(0)
+
+        return send_file(
+            pdf_bytes,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
 
     except requests.exceptions.Timeout:
         return jsonify({"ok": False, "error": "API request timeout"}), 504

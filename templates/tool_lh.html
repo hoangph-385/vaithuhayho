@@ -16,6 +16,7 @@
     <label for="selectedDate" style="font-weight: 600; margin-right: 8px;">Chọn ngày:</label>
     <input type="date" id="selectedDate" class="form-control" style="width: 180px;">
     <button id="btnFetchTrips" class="btn-action">Lấy dữ liệu</button>
+    <button id="btnMassDownload" class="btn-action" style="margin-left: 8px;" disabled type="button">Tải hàng loạt</button>
     <div style="margin-left: auto; display: flex; align-items: center;">
       <p style="margin: 0; font-size: 14px;"><span id="cookieExpiry" style="color: #d9534f; font-weight: 700; font-size: 16px;">--</span> - <span id="spxDN" style="color: #0275d8; font-weight: 700; font-size: 16px;">--</span></p>
     </div>
@@ -33,6 +34,7 @@
     <table class="table" id="tripsTable">
       <thead>
         <tr>
+          <th style="width: 40px; text-align: center;"><input type="checkbox" class="select-all-checkbox" data-target="outbound" aria-label="Chọn tất cả outbound"></th>
           <th>STT</th>
           <th>Trip Number</th>
           <th>Vehicle</th>
@@ -64,6 +66,7 @@
     <table class="table" id="handoverTable">
       <thead>
         <tr>
+          <th style="width: 40px; text-align: center;"><input type="checkbox" class="select-all-checkbox" data-target="handover" aria-label="Chọn tất cả handover"></th>
           <th>STT</th>
           <th>Trip Number</th>
           <th>Vehicle</th>
@@ -96,6 +99,7 @@ const audioCache = {
 };
 audioCache.success.volume = 0.5;
 audioCache.error.volume = 0.5;
+const IS_AUTHENTICATED = "{{ 'true' if is_authenticated else 'false' }}" === 'true';
 
 // Utility functions
 function el(id) { return document.getElementById(id); }
@@ -217,10 +221,12 @@ async function fetchTrips() {
 function displayTrips(data) {
   const tbody = el("tripsTableBody");
   tbody.innerHTML = "";
+  resetSelectAll('outbound');
 
   if (!data.trips || data.trips.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
     el("tripsSection").style.display = "block";
+    updateMassDownloadButtonState();
     return Promise.resolve();
   }
 
@@ -257,6 +263,9 @@ function displayTrips(data) {
       const stt = data.total_trips - index;
       const row = document.createElement("tr");
       row.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="trip-checkbox" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" data-kind="outbound" data-to-qty="${trip.load_quantity || 0}" data-parcel-qty="${parcelMap[trip.id] || 0}">
+        </td>
         <td style="text-align: center;">${stt}</td>
         <td><strong>${trip.trip_number}</strong></td>
         <td>${trip.vehicle_number || "-"}</td>
@@ -268,14 +277,30 @@ function displayTrips(data) {
         <td>${formatDateTime(trip.loading_time)}</td>
         <td>${formatDateTime(trip.seal_time)}</td>
         <td style="text-align: center;">
-          <button class="btn-download-csv" id="csv-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this)">Tải CSV</button>
-          <button class="btn-download-pdf" id="pdf-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
+          <button class="btn-download-trip" id="action-outbound-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" data-kind="outbound" data-to-qty="${trip.load_quantity || 0}" data-parcel-qty="${parcelMap[trip.id] || 0}" onclick="downloadTripFiles(this)">Tải PDF+CSV</button>
         </td>
       `;
       tbody.appendChild(row);
+      if (!IS_AUTHENTICATED) {
+          const checkbox = row.querySelector('.trip-checkbox');
+          const button = row.querySelector('.btn-download-trip');
+          if (checkbox) {
+            checkbox.disabled = true;
+            checkbox.style.opacity = '0.6';
+            checkbox.style.cursor = 'not-allowed';
+            checkbox.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+          }
+          if (button) {
+            button.disabled = true;
+            button.style.opacity = '0.6';
+            button.style.cursor = 'not-allowed';
+            button.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+          }
+        }
     });
 
     el("tripsSection").style.display = "block";
+    updateMassDownloadButtonState();
   });
 }
 
@@ -283,11 +308,13 @@ function displayHandoverTrips(data) {
   console.log("displayHandoverTrips called with:", data);
   const tbody = el("handoverTableBody");
   tbody.innerHTML = "";
+  resetSelectAll('handover');
 
   if (!data.trips || data.trips.length === 0) {
     console.log("No handover trips data");
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">Không có dữ liệu</td></tr>';
     el("handoverSection").style.display = "block";
+    updateMassDownloadButtonState();
     return Promise.resolve();
   }
 
@@ -325,6 +352,9 @@ function displayHandoverTrips(data) {
       const stt = data.total_trips - index;
       const row = document.createElement("tr");
       row.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="trip-checkbox" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" data-kind="handover" data-to-qty="${trip.load_quantity || 0}" data-parcel-qty="${parcelMap[trip.id] || 0}">
+        </td>
         <td style="text-align: center;">${stt}</td>
         <td><strong>${trip.trip_number}</strong></td>
         <td>${trip.vehicle_number || "-"}</td>
@@ -336,121 +366,270 @@ function displayHandoverTrips(data) {
         <td>${formatDateTime(trip.loading_time)}</td>
         <td>${formatDateTime(trip.seal_time)}</td>
         <td style="text-align: center;">
-          <button class="btn-download-csv" id="csv-h-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" onclick="downloadCSV('${trip.id}', '${trip.trip_number}', ${trip.sequence_number || 1}, this, 'handover')">Tải CSV</button>
-          <button class="btn-download-pdf" id="pdf-h-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" onclick="downloadPDF('${trip.id}', '${trip.trip_number}', this)">Tải PDF</button>
+          <button class="btn-download-trip" id="action-handover-${trip.id}" data-trip-id="${trip.id}" data-trip-number="${trip.trip_number}" data-sequence="${trip.sequence_number || 1}" data-kind="handover" data-to-qty="${trip.load_quantity || 0}" data-parcel-qty="${parcelMap[trip.id] || 0}" onclick="downloadTripFiles(this)">Tải PDF+CSV</button>
         </td>
       `;
       tbody.appendChild(row);
+      if (!IS_AUTHENTICATED) {
+          const checkbox = row.querySelector('.trip-checkbox');
+          const button = row.querySelector('.btn-download-trip');
+          if (checkbox) {
+            checkbox.disabled = true;
+            checkbox.style.opacity = '0.6';
+            checkbox.style.cursor = 'not-allowed';
+            checkbox.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+          }
+          if (button) {
+            button.disabled = true;
+            button.style.opacity = '0.6';
+            button.style.cursor = 'not-allowed';
+            button.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+          }
+        }
     });
 
     el("handoverSection").style.display = "block";
+    updateMassDownloadButtonState();
   });
 }
 
-// Download CSV function
-// Note: tripId, tripNumber, sequenceNumber are also stored in button's data attributes
-// (data-trip-id, data-trip-number, data-sequence) for future reference if needed
-async function downloadCSV(tripId, tripNumber, sequenceNumber, btn, kind = 'outbound') {
-  const originalText = btn.innerHTML;
-  try {
-    // Disable button and show spinner animation
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Đang tải...';
-    btn.style.opacity = '0.7';
-    btn.style.cursor = 'not-allowed';
-
-    notice(`⏳ Đang tải CSV cho trip ${tripNumber}...`, "info");
-
-    const url = `/api/report/LH_get_list/${tripId}/${tripNumber}?seq=${sequenceNumber}&kind=${kind}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    // Get filename from headers if provided
-    const disposition = response.headers.get('Content-Disposition');
-    let filename = `${tripNumber}.csv`;
-    if (disposition && disposition.includes('filename=')) {
-      const match = disposition.match(/filename="?([^";]+)"?/);
-      if (match && match[1]) filename = match[1];
-    }
-
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-
-    notice(`✓ Đã tải xong CSV cho trip ${tripNumber}`, "success", 6000);
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    btn.style.opacity = '1';
-    btn.style.cursor = 'pointer';
-
-  } catch (error) {
-    console.error("Error downloading CSV:", error);
-    notice(`✗ Lỗi: ${error.message}`, "error", 5000);
-    // Re-enable button on error
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    btn.style.opacity = '1';
-    btn.style.cursor = 'pointer';
-  }
+function getTripPayloadFromDataset(dataset) {
+  return {
+    tripId: dataset.tripId,
+    tripNumber: dataset.tripNumber,
+    sequenceNumber: Number(dataset.sequence) || 1,
+    kind: dataset.kind || 'outbound',
+    toQty: Number(dataset.toQty) || 0,
+    parcelQty: Number(dataset.parcelQty) || 0
+  };
 }
 
-// Download PDF function
-async function downloadPDF(tripId, tripNumber, btn) {
+function triggerBlobDownload(blob, filename) {
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(blobUrl);
+}
+
+function resolveFilenameFromDisposition(disposition, defaultName) {
+  if (!disposition) return defaultName;
+  const match = disposition.match(/filename="?([^";]+)"?/);
+  return match && match[1] ? match[1] : defaultName;
+}
+
+async function downloadFileFromUrl(url, defaultName) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const disposition = response.headers.get('Content-Disposition');
+  const filename = resolveFilenameFromDisposition(disposition, defaultName);
+  const blob = await response.blob();
+  triggerBlobDownload(blob, filename);
+}
+
+async function fetchPdfDownloadUrl(tripId) {
+  // Use the proxy endpoint instead of getting the Shopee URL directly
+  return `/api/report/LH_download_pdf/${tripId}`;
+}
+
+async function downloadCsvForTrip(payload) {
+  const url = `/api/report/LH_get_list/${payload.tripId}/${payload.tripNumber}?seq=${payload.sequenceNumber}&kind=${payload.kind}&to_qty=${payload.toQty}&parcel_qty=${payload.parcelQty}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const disposition = response.headers.get('Content-Disposition');
+  let filename = `${payload.tripNumber}.csv`;
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+
+  const blob = await response.blob();
+  triggerBlobDownload(blob, filename);
+}
+
+async function downloadTripFiles(btn, progressTracker = null) {
+  if (!btn) return;
+  const payload = getTripPayloadFromDataset(btn.dataset);
   const originalText = btn.innerHTML;
   try {
-    // Disable button and show spinner
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Đang tải...';
     btn.style.opacity = '0.7';
     btn.style.cursor = 'not-allowed';
 
-    notice(`⏳ Đang lấy PDF cho trip ${tripNumber}...`, "info");
-
-    // Ask backend to fetch run sheet list and return the download URL (prioritizes station 2259)
-    const resp = await fetch(`/api/report/LH_run_sheet/${tripId}`);
-    const data = await resp.json();
-    if (!resp.ok || !data.ok || !data.download_url) {
-      const errMsg = data && data.error ? data.error : `HTTP ${resp.status}`;
-      throw new Error(errMsg);
+    if (!progressTracker) {
+      notice(`⏳ Đang tải PDF cho trip ${payload.tripNumber}...`, "info");
     }
+    const pdfUrl = await fetchPdfDownloadUrl(payload.tripId);
+    await downloadFileFromUrl(pdfUrl, `${payload.tripNumber}.pdf`);
 
-    const url = data.download_url;
-
-    // Open PDF in new tab
-    const newWindow = window.open(url, '_blank');
-
-    // Check if window opened successfully
-    if (newWindow) {
-      // Play success sound
+    if (progressTracker) {
+      progressTracker.increment(payload.tripNumber, 'PDF');
+    } else {
       audioCache.success.currentTime = 0;
       audioCache.success.play().catch(e => console.log("Audio play failed:", e));
-      notice(`✓ Đã mở PDF cho trip ${tripNumber}`, "success", 4000);
-    } else {
-      // Popup blocked
-      throw new Error("Popup bị chặn - vui lòng cho phép popup");
+      notice(`✓ Đã tải PDF cho trip ${payload.tripNumber}`, "success", 4000);
     }
 
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    btn.style.opacity = '1';
-    btn.style.cursor = 'pointer';
+    if (!progressTracker) {
+      notice(`⏳ Đang tải CSV cho trip ${payload.tripNumber}...`, "info");
+    }
+    await downloadCsvForTrip(payload);
+
+    if (progressTracker) {
+      progressTracker.increment(payload.tripNumber, 'CSV');
+    } else {
+      notice(`✓ Đã tải CSV cho trip ${payload.tripNumber}`, "success", 4000);
+    }
 
   } catch (error) {
-    console.error("Error downloading PDF:", error);
-    notice(`✗ Lỗi: ${error.message}`, "error", 5000);
-    // Re-enable button on error
+    console.error("Error downloading trip files:", error);
+    if (progressTracker) {
+      progressTracker.markError(payload.tripNumber, error.message);
+    } else {
+      notice(`✗ Lỗi: ${error.message}`, "error", 5000);
+    }
+    throw error;
+  } finally {
     btn.disabled = false;
     btn.innerHTML = originalText;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
   }
 }
+
+async function handleMassDownload() {
+  const massBtn = el("btnMassDownload");
+  if (!massBtn) return;
+  const selected = Array.from(document.querySelectorAll('.trip-checkbox:checked'));
+  if (!selected.length) {
+    notice('⚠ Vui lòng chọn ít nhất một trip để tải', 'warning', 5000);
+    return;
+  }
+  massBtn.disabled = true;
+
+  // Create progress tracker
+  const tripNumbers = selected.map(cb => cb.dataset.tripNumber);
+  const tracker = createProgressTracker(tripNumbers);
+
+  try {
+    const downloadPromises = selected.map(checkbox => {
+      const meta = checkbox.dataset;
+      const buttonId = `action-${meta.kind}-${meta.tripId}`;
+      const btn = document.getElementById(buttonId);
+      return btn ? downloadTripFiles(btn, tracker) : Promise.resolve();
+    });
+
+    await Promise.allSettled(downloadPromises);
+
+    // Final summary
+    const summary = tracker.getSummary();
+    if (summary.failed > 0) {
+      notice(`✓ Hoàn tất: ${summary.completed}/${summary.total} files thành công, ${summary.failed} lỗi`, 'warning', 8000);
+    } else {
+      audioCache.success.currentTime = 0;
+      audioCache.success.play().catch(e => console.log("Audio play failed:", e));
+      notice(`✓ Đã tải thành công ${summary.completed}/${summary.total} files!`, 'success', 6000);
+    }
+  } finally {
+    updateMassDownloadButtonState();
+  }
+}
+
+function createProgressTracker(tripNumbers) {
+  const trips = {};
+  tripNumbers.forEach(num => {
+    trips[num] = { completed: 0, total: 2, errors: [] };
+  });
+
+  const totalFiles = tripNumbers.length * 2;
+  let completedFiles = 0;
+  let failedFiles = 0;
+
+  function updateNotice() {
+    const percentage = Math.round((completedFiles / totalFiles) * 100);
+    const lines = [`⏳ Đang tải: ${completedFiles}/${totalFiles} files (${percentage}%)`];
+
+    // Show per-trip progress
+    tripNumbers.forEach(num => {
+      const t = trips[num];
+      const status = t.errors.length > 0 ? '✗' : (t.completed === t.total ? '✓' : '⏳');
+      lines.push(`${status} ${num}: ${t.completed}/${t.total}`);
+    });
+
+    notice(lines.join('\n'), 'info');
+  }
+
+  return {
+    increment(tripNumber, fileType) {
+      if (trips[tripNumber]) {
+        trips[tripNumber].completed++;
+        completedFiles++;
+        updateNotice();
+      }
+    },
+
+    markError(tripNumber, errorMsg) {
+      if (trips[tripNumber]) {
+        trips[tripNumber].errors.push(errorMsg);
+        failedFiles++;
+        updateNotice();
+      }
+    },
+
+    getSummary() {
+      return {
+        total: totalFiles,
+        completed: completedFiles,
+        failed: failedFiles
+      };
+    }
+  };
+}
+
+function updateMassDownloadButtonState() {
+  const btn = el("btnMassDownload");
+  if (!btn) return;
+  const hasSelection = document.querySelectorAll('.trip-checkbox:checked').length > 0;
+  btn.disabled = !IS_AUTHENTICATED || !hasSelection;
+}
+
+function resetSelectAll(kind) {
+  const checkbox = document.querySelector(`.select-all-checkbox[data-target="${kind}"]`);
+  if (checkbox) {
+    checkbox.checked = false;
+    checkbox.indeterminate = false;
+  }
+}
+
+document.addEventListener("change", event => {
+  const target = event.target;
+  if (target.classList && target.classList.contains("select-all-checkbox")) {
+    const kind = target.dataset.target;
+    const checked = target.checked;
+    document.querySelectorAll(`.trip-checkbox[data-kind="${kind}"]`).forEach(cb => {
+      cb.checked = checked;
+    });
+    target.indeterminate = false;
+    updateMassDownloadButtonState();
+  } else if (target.classList && target.classList.contains("trip-checkbox")) {
+    const kind = target.dataset.kind;
+    if (kind) {
+      const group = document.querySelectorAll(`.trip-checkbox[data-kind="${kind}"]`);
+      const selectAll = document.querySelector(`.select-all-checkbox[data-target="${kind}"]`);
+      if (selectAll && group.length) {
+        const checkedCount = Array.from(group).filter(cb => cb.checked).length;
+        selectAll.checked = checkedCount === group.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < group.length;
+      }
+    }
+    updateMassDownloadButtonState();
+  }
+});
 
 // Fetch and display SPX DN value
 async function updateSpxDN() {
@@ -532,6 +711,11 @@ document.addEventListener("DOMContentLoaded", () => {
   el("selectedDate").value = `${yyyy}-${mm}-${dd}`;
 
   el("btnFetchTrips").addEventListener("click", fetchTrips);
+  const massBtn = el("btnMassDownload");
+  if (massBtn) {
+    massBtn.addEventListener("click", handleMassDownload);
+  }
+  updateMassDownloadButtonState();
 
   // Update SPX DN and cookie expiry on page load and every 5 seconds
   updateSpxDN();
@@ -547,37 +731,34 @@ document.addEventListener("DOMContentLoaded", () => {
 <script>
 (function() {
   "use strict";
-  const isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}";
+  function disableControl(element) {
+    if (!element) return;
+    element.disabled = true;
+    element.style.opacity = '0.6';
+    element.style.cursor = 'not-allowed';
+    element.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+  }
+
   function applyViewOnlyMode() {
-    if (isAuthenticated === 'true') return;
+    if (IS_AUTHENTICATED) return;
     console.log('[VIEW-ONLY] Disabling all action controls');
     const inputs = ['selectedDate'];
     inputs.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.disabled = true;
-        el.readOnly = true;
-        el.style.opacity = '0.6';
-        el.style.cursor = 'not-allowed';
-        el.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+      const field = document.getElementById(id);
+      if (field) {
+        disableControl(field);
+        field.readOnly = true;
       }
     });
-    const buttons = ['btnFetchTrips'];
+    const buttons = ['btnFetchTrips', 'btnMassDownload'];
     buttons.forEach(id => {
       const btn = document.getElementById(id);
       if (btn) {
-        btn.disabled = true;
-        btn.style.opacity = '0.6';
-        btn.style.cursor = 'not-allowed';
-        btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
+        disableControl(btn);
       }
     });
-    document.querySelectorAll('.btn-download-csv, .btn-download-pdf').forEach(btn => {
-      btn.disabled = true;
-      btn.style.opacity = '0.6';
-      btn.style.cursor = 'not-allowed';
-      btn.title = 'Vui lòng đăng nhập để sử dụng chức năng này';
-    });
+    document.querySelectorAll('.trip-checkbox, .select-all-checkbox').forEach(el => disableControl(el));
+    document.querySelectorAll('.btn-download-trip').forEach(btn => disableControl(btn));
     const notice = document.getElementById('notice');
     if (notice) {
       notice.innerHTML = '⚠ Chế độ chỉ xem - Vui lòng đăng nhập để thực hiện thao tác';
@@ -586,6 +767,7 @@ document.addEventListener("DOMContentLoaded", () => {
       notice.style.display = 'block';
     }
   }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyViewOnlyMode);
   } else {
