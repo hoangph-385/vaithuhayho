@@ -16,14 +16,21 @@
       <select id="warehouse"><option>VNDB</option></select>
       <label>Chế độ</label>
       <select id="scanMode">
-        <option value="vanhanh">Vanhanh API</option>
-        <option value="firebase">Firebase VNDB</option>
+        <option value="vanhanh">Vanhanh</option>
+        <option value="firebase">Firebase</option>
       </select>
       <label>Ca</label>
       <div class="row">
         <input id="hour" type="number" min="0" max="23">
         <span>:</span>
         <select id="minute"><option>00</option><option>30</option></select>
+      </div>
+      <div class="row" style="margin-left: 15px; border-left: 1px solid #ccc; padding-left: 15px;">
+        <span style="margin-right: 5px; font-weight: bold;">Loại Ca:</span>
+        <input type="radio" id="shiftDay" name="shiftType" value="day" checked style="width:auto; margin-right: 4px;">
+        <label for="shiftDay" style="margin-right: 10px; cursor:pointer;">Ngày</label>
+        <input type="radio" id="shiftNight" name="shiftType" value="night" style="width:auto; margin-right: 4px;">
+        <label for="shiftNight" style="cursor:pointer;">Đêm</label>
       </div>
     </div>
   </div>
@@ -456,12 +463,18 @@
 }
 
   // Trả về lý do chặn (string) hoặc "" nếu hợp lệ
-  function checkDuplicateByKeys(rec, action){
+  function checkDuplicateByKeys(rec, action, shiftType="day"){
   const hasVal = v => v !== undefined && v !== null && String(v).trim() !== "";
   if(!rec) return "";
 
   if(action === "in"){
-    if(hasVal(rec.shift_in)) return "Nhân viên này đã Scan In trong ngày rồi!";
+    if(hasVal(rec.shift_in)) {
+      // Nếu là ca Đêm và record cũ đã scan out -> cho phép scan in tiếp
+      if (shiftType === "night" && (hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out))) {
+        return "";
+      }
+      return "Nhân viên này đã Scan In trong ngày rồi!";
+    }
   } else if(action === "out"){
     if(!hasVal(rec.shift_in)) return "Nhân viên này chưa Scan In, không thể Out.";
     if(hasVal(rec.shift_out) || hasVal(rec.gsheet_time_out)) return "Nhân viên này đã Scan Out trong ngày rồi!";
@@ -981,6 +994,48 @@
       const currentData = await fetchRTDBAll(wh, day);
       ANALYZE.currentData = currentData;
 
+      // Filter currentData by Shift Type
+      const shiftType = document.querySelector('input[name="shiftType"]:checked')?.value || "day";
+      const filteredData = {};
+
+      for (const [shiftTime, vendors] of Object.entries(currentData || {})) {
+          const h = parseInt(shiftTime.split(':')[0], 10);
+          const isNight = (h >= 18 || h < 6);
+
+          const filteredVendors = {};
+          let hasVendors = false;
+
+          for (const [vendorName, staffGroup] of Object.entries(vendors || {})) {
+              const filteredStaff = {};
+              let hasStaff = false;
+
+              for (const [wfm, rec] of Object.entries(staffGroup || {})) {
+                  let keep = false;
+                  if (rec.shift_type) {
+                      if (rec.shift_type === shiftType) keep = true;
+                  } else {
+                      // Fallback
+                      if (shiftType === 'day' && !isNight) keep = true;
+                      if (shiftType === 'night' && isNight) keep = true;
+                  }
+
+                  if (keep) {
+                      filteredStaff[wfm] = rec;
+                      hasStaff = true;
+                  }
+              }
+
+              if (hasStaff) {
+                  filteredVendors[vendorName] = filteredStaff;
+                  hasVendors = true;
+              }
+          }
+
+          if (hasVendors) {
+              filteredData[shiftTime] = filteredVendors;
+          }
+      }
+
       // Fetch all historical data
       const allData = await fetchAllVNDBData();
       ANALYZE.allData = allData;
@@ -992,7 +1047,7 @@
       const threshold = parseInt(el('analyze-threshold')?.value || '3', 10);
 
       // Analyze current day data
-      const stats = analyzeData(currentData, frequencies, threshold);
+      const stats = analyzeData(filteredData, frequencies, threshold);
       ANALYZE.stats = stats;
 
       // Render
@@ -1539,6 +1594,7 @@
       fullname:        safe(r.fullname || r.full_name).toUpperCase(),
       gender:          normalizeGender(r.gender) || safe(r.gender).toUpperCase().normalize("NFC"), // Normalize gender
       shift_in:        safe(r.shift_in || r.shift),
+      shift_type:      safe(r.shift_type),
       shift_out:       safe(r.shift_out),
       birth_year:      safe(r.birth_year),
       gsheet_time_in:  safe(r.gsheet_time_in),
@@ -1575,7 +1631,20 @@
   function applyDashFiltersAndRender(){
     const fs=DASH.filters||{};
     const q=v=>String(v||"").toLowerCase();
+    const shiftType = document.querySelector('input[name="shiftType"]:checked')?.value || "day";
+
     DASH.filtered = DASH.rows.filter(row=>{
+      // Filter by Shift Type
+      if (row.shift_type) {
+          if (row.shift_type !== shiftType) return false;
+      } else {
+          // Fallback inference
+          const h = parseInt((row.shift_in || "00:00").split(':')[0], 10);
+          const isNight = (h >= 18 || h < 6);
+          if (shiftType === 'day' && isNight) return false;
+          if (shiftType === 'night' && !isNight) return false;
+      }
+
       for(const [k,val] of Object.entries(fs)){
         if(!val) continue;
         if(!q(row[k]).includes(q(val))) return false;
@@ -1732,6 +1801,9 @@
   const hh = String(+el("hour").value).padStart(2,"0");
   const mm = el("minute").value === "30" ? "30" : "00";
   const shiftTime = `${hh}:${mm}`;
+  const shiftType = document.querySelector('input[name="shiftType"]:checked')?.value || "day";
+  const dp = el("dayPicker");
+  const scanDate = (dp && dp.value) ? dp.value : todayKey();
 
   if (direction === "in") {
     el("in-operator").textContent = "?";
@@ -1762,10 +1834,10 @@
 
       // ⛔ Chặn Scan In trùng theo key (shift_in đã có giá trị)
       {
-        const raw  = await fetchRTDBAll(wh, todayKey());
+        const raw  = await fetchRTDBAll(wh, scanDate);
         const flat = flattenRecords(raw);
         const rec  = findTodayRec(flat, staff_no);
-        const msg  = checkDuplicateByKeys(rec, "in");
+        const msg  = checkDuplicateByKeys(rec, "in", shiftType);
         if (msg){
           notice(msg, "error", 5000);
           playSysErr();
@@ -1822,14 +1894,15 @@
         fullname: fullnameValue,
         vendor_name: vendorName,
         shift_in: shiftTime,
-        date: todayKey(),
+        shift_type: shiftType,
+        date: scanDate,
         gender: normalizeGender(info.gender),
         vendor_code: String(info.staff_id || "").trim().toUpperCase(),
         birth_year: String(info.birth_year || "").trim(),
         operator: String(operator || "").trim().toUpperCase(),
         wms_user_id: String(wms_user_id || "").trim(),
         gsheet_time_in
-      };      const path = rtdbRecPath(wh, todayKey(), rec.shift_in, vendorName, staff_no.toUpperCase());
+      };      const path = rtdbRecPath(wh, scanDate, rec.shift_in, vendorName, staff_no.toUpperCase());
       console.log("[SCAN IN] Firebase path:", path);
       console.log("[SCAN IN] staff_no:", staff_no, "| vendor_code:", rec.vendor_code);
       await fetch(path, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(rec) });
@@ -1879,7 +1952,7 @@
       if (scanMode === "firebase") {
         // Mode Firebase: lấy từ Firebase RTDB của ngày hôm nay (data đã scan in)
         try {
-          const raw  = await fetchRTDBAll(wh, todayKey());
+          const raw  = await fetchRTDBAll(wh, scanDate);
           const flat = flattenRecords(raw);
           rec  = findTodayRec(flat, staff_no);
 
@@ -1896,7 +1969,7 @@
         }
       } else {
         // Mode Vanhanh: lấy từ RTDB hiện tại
-        const raw  = await fetchRTDBAll(wh, todayKey());
+        const raw  = await fetchRTDBAll(wh, scanDate);
         const flat = flattenRecords(raw);
         rec  = findTodayRec(flat, staff_no);
       }
@@ -1915,7 +1988,7 @@
 
       // 2) Chặn trùng theo key (key nào đã có giá trị thì block)
       {
-        const msg = checkDuplicateByKeys(rec, act_no);
+        const msg = checkDuplicateByKeys(rec, act_no, shiftType);
         if (msg) {
           notice(msg, "error", 5000);
           playSysErr();
@@ -1956,7 +2029,7 @@
       const vendorNameForPath = (rec.vendor_name || "").trim() || "Other";
       const url = rtdbRecPath(
         wh,
-        todayKey(),
+        scanDate,
         rec.shift_in || rec.shift || "",      // node ca
         vendorNameForPath,                     // node vendor
         staff_no.toUpperCase()                // Dùng staff_no đã parse, chuyển uppercase
@@ -2019,7 +2092,7 @@
       if (scanMode === "firebase") {
         // Mode Firebase: lấy từ Firebase RTDB của ngày hôm nay (data đã scan in)
         try {
-          const raw  = await fetchRTDBAll(wh, todayKey());
+          const raw  = await fetchRTDBAll(wh, scanDate);
           const flat = flattenRecords(raw);
           rec  = findTodayRec(flat, staff_no);
 
@@ -2036,7 +2109,7 @@
         }
       } else {
         // Mode Vanhanh: lấy từ RTDB hiện tại
-        const raw  = await fetchRTDBAll(wh, todayKey());
+        const raw  = await fetchRTDBAll(wh, scanDate);
         const flat = flattenRecords(raw);
         rec  = findTodayRec(flat, staff_no);
       }
@@ -2055,7 +2128,7 @@
 
       // Chặn trùng theo key cho Out (shift_out đã có)
       {
-        const msg = checkDuplicateByKeys(rec, "out");
+        const msg = checkDuplicateByKeys(rec, "out", shiftType);
         if (msg){
           notice(msg, "error", 5000);
           playSysErr();
@@ -2083,7 +2156,7 @@
       const vendorNameForPath = (rec.vendor_name || "").trim() || "Other";
       const url = rtdbRecPath(
         wh,
-        todayKey(),
+        scanDate,
         rec.shift_in || rec.shift,
         vendorNameForPath,
         staff_no.toUpperCase()  // Dùng staff_no đã parse, chuyển uppercase
@@ -2129,7 +2202,35 @@
       detach = onValue(
         r,
         (snap)=>{
-          const val=snap.val()||{};
+          let val=snap.val()||{};
+
+          // Filter val by Shift Type
+          const shiftType = document.querySelector('input[name="shiftType"]:checked')?.value || "day";
+          const filteredVal = {};
+          for (const [shiftTime, vendors] of Object.entries(val)) {
+              const h = parseInt(shiftTime.split(':')[0], 10);
+              const isNight = (h >= 18 || h < 6);
+              const fVendors = {};
+              let hasV = false;
+              for(const [vn, staff] of Object.entries(vendors||{})){
+                  const fStaff = {};
+                  let hasS = false;
+                  for(const [wfm, rec] of Object.entries(staff||{})){
+                      let keep = false;
+                      if (rec.shift_type) {
+                          if (rec.shift_type === shiftType) keep = true;
+                      } else {
+                          if (shiftType === 'day' && !isNight) keep = true;
+                          if (shiftType === 'night' && isNight) keep = true;
+                      }
+                      if(keep){ fStaff[wfm]=rec; hasS=true; }
+                  }
+                  if(hasS){ fVendors[vn]=fStaff; hasV=true; }
+              }
+              if(hasV){ filteredVal[shiftTime]=fVendors; }
+          }
+          val = filteredVal;
+
           const stats=computeCounts(val);
           renderInCounters(stats);
           renderOutCounters(stats);
@@ -2161,6 +2262,23 @@
 
   /* ====================== INIT ====================== */
   function bindEvents(){
+    // Shift Type Radio Buttons
+    const shiftRadios = document.getElementsByName('shiftType');
+    shiftRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            localStorage.setItem('shiftType', e.target.value);
+            // Trigger reload/refresh
+            el('dayPicker')?.dispatchEvent(new Event('change'));
+        });
+    });
+
+    // Restore Shift Type
+    const savedShift = localStorage.getItem('shiftType');
+    if (savedShift) {
+        const r = document.querySelector(`input[name="shiftType"][value="${savedShift}"]`);
+        if (r) r.checked = true;
+    }
+
     // Scan Mode selector - lưu lựa chọn vào localStorage
     el("scanMode")?.addEventListener('change', (e)=>{
       const mode = e.target.value;
