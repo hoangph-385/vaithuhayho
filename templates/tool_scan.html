@@ -16,8 +16,8 @@
       <select id="warehouse"><option>VNDB</option></select>
       <label>Chế độ</label>
       <select id="scanMode">
-        <option value="vanhanh">Vanhanh</option>
-        <option value="firebase">Firebase</option>
+        <!-- <option value="vanhanh">Vanhanh</option> -->
+        <option value="firebase" selected>Firebase</option>
       </select>
       <label>Ca</label>
       <div class="row">
@@ -493,6 +493,35 @@
   return "";
 }
 
+  // Kiểm tra xem có scan đúng ca không (dùng cho out và task)
+  function checkShiftMismatch(rec, currentShiftType, actionLabel = "thao tác") {
+    if (!rec) return "";
+
+    const recShiftType = rec.shift_type || null;
+
+    // Nếu record có shift_type, kiểm tra khớp với ca hiện tại
+    if (recShiftType && recShiftType !== currentShiftType) {
+      const recShiftLabel = recShiftType === 'day' ? 'Ca Ngày' : 'Ca Đêm';
+      const currentShiftLabel = currentShiftType === 'day' ? 'Ca Ngày' : 'Ca Đêm';
+      return `Nhân viên này đã scan in ở ${recShiftLabel}, không thể ${actionLabel} ở ${currentShiftLabel}.`;
+    }
+
+    // Fallback: nếu không có shift_type, suy luận từ shift_in
+    if (!recShiftType && rec.shift_in) {
+      const h = parseInt((rec.shift_in || "00:00").split(':')[0], 10);
+      const recIsNight = (h >= 18 || h < 6);
+      const currentIsNight = (currentShiftType === 'night');
+
+      if (recIsNight !== currentIsNight) {
+        const recShiftLabel = recIsNight ? 'Ca Đêm' : 'Ca Ngày';
+        const currentShiftLabel = currentIsNight ? 'Ca Đêm' : 'Ca Ngày';
+        return `Nhân viên này đã scan in ở ${recShiftLabel}, không thể ${actionLabel} ở ${currentShiftLabel}.`;
+      }
+    }
+
+    return "";
+  }
+
   const VENDOR_RE = /^SP[A-Z0-9]{8}$/i;
   const VANHANH_BASE = "https://vanhanh.shopee.vn";
 
@@ -619,7 +648,24 @@
   // Khóa quét nếu chọn khác hôm nay (past/future)
   function applyDayLock(){
     const dp = document.getElementById('dayPicker');
-    const locked = dp && !isTodayStr(dp.value);
+    const shiftType = document.querySelector('input[name="shiftType"]:checked')?.value || "day";
+
+    // Nếu chọn ca Đêm + ngày D-1 (hôm qua) -> cho phép scan
+    const isYesterdayNightShift = () => {
+      if (shiftType !== 'night') return false;
+      if (!dp || !dp.value) return false;
+
+      const selected = new Date(dp.value + 'T00:00:00');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      return selected.getTime() === yesterday.getTime();
+    };
+
+    const locked = dp && !isTodayStr(dp.value) && !isYesterdayNightShift();
     document.body.dataset.dayLock = locked ? "1" : "0";
 
     // Chỉ tác động tới các control quét
@@ -1845,6 +1891,29 @@
         }
       }
 
+      // ⛔ Kiểm tra khoảng cách 10 tiếng giữa scan out lần trước và scan in hiện tại
+      {
+        const raw  = await fetchRTDBAll(wh, scanDate);
+        const flat = flattenRecords(raw);
+        const rec  = findTodayRec(flat, staff_no);
+
+        if (rec && rec.gsheet_time_out) {
+          // Parse gsheet_time_out (format: "10 Dec 2025 07:15:30")
+          const lastOutTime = new Date(rec.gsheet_time_out);
+          if (!isNaN(lastOutTime.getTime())) {
+            const now = new Date();
+            const hoursDiff = (now - lastOutTime) / (1000 * 60 * 60);
+
+            if (hoursDiff < 10) {
+              const remainingHours = (10 - hoursDiff).toFixed(1);
+              notice(`Nhân viên này vừa scan out lúc ${rec.shift_out || rec.gsheet_time_out}. Cần nghỉ ít nhất 10 tiếng (còn ${remainingHours}h).`, "error", 7000);
+              playSysErr();
+              return;
+            }
+          }
+        }
+      }
+
       // Optional QA verification: don't mark scanned unless QA API confirms
       // ⚠️ Bỏ qua QA check khi ở chế độ Firebase (vanhanh API không tồn tại)
       const scanMode = el("scanMode")?.value || "vanhanh";
@@ -1996,6 +2065,16 @@
         }
       }
 
+      // ⛔ Chặn scan task nhầm ca
+      {
+        const msg = checkShiftMismatch(rec, shiftType, "scan task");
+        if (msg) {
+          notice(msg, "error", 6000);
+          playSysErr();
+          return;
+        }
+      }
+
       // 3) Xử lý theo loại task
       const now = new Date();
       const task_time = now.toTimeString().slice(0,8);   // HH:MM:SS
@@ -2137,6 +2216,16 @@
         el("out-wfm").value = ""; safeFocus("out-wfm");
       }
 
+      // ⛔ Chặn scan out nhầm ca
+      {
+        const msg = checkShiftMismatch(rec, shiftType, "scan out");
+        if (msg) {
+          notice(msg, "error", 6000);
+          playSysErr();
+          return;
+        }
+      }
+
       // Set UI từ record
       setPersonUI("out", info || rec, img_url ? await imgFromUrl(img_url) : "");
   el("out-operator").textContent = (rec.operator || "").toUpperCase();
@@ -2266,18 +2355,14 @@
     const shiftRadios = document.getElementsByName('shiftType');
     shiftRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
-            localStorage.setItem('shiftType', e.target.value);
-            // Trigger reload/refresh
+            // Re-apply day lock when shift type changes
+            applyDayLock();
+            // Trigger reload/refresh without saving to localStorage
             el('dayPicker')?.dispatchEvent(new Event('change'));
         });
     });
 
-    // Restore Shift Type
-    const savedShift = localStorage.getItem('shiftType');
-    if (savedShift) {
-        const r = document.querySelector(`input[name="shiftType"][value="${savedShift}"]`);
-        if (r) r.checked = true;
-    }
+    // Default to "day" shift on load (no localStorage restore)
 
     // Scan Mode selector - lưu lựa chọn vào localStorage
     el("scanMode")?.addEventListener('change', (e)=>{
