@@ -1438,8 +1438,8 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 }
 
 /* Column widths theo tỷ lệ màn hình - responsive và tự nhiên */
-#tbl-dashboard th:nth-child(1),  /* STT */
-#tbl-dashboard td:nth-child(1) { width:3%; }
+#tbl-dashboard th:nth-child(1),  /* No. */
+#tbl-dashboard td:nth-child(1) { width: 3%; }
 
 #tbl-dashboard th:nth-child(2),  /* ⏷ Nhà Thầu */
 #tbl-dashboard td:nth-child(2) { width: 8%; }
@@ -1453,32 +1453,29 @@ table.table thead th.sticky { position: sticky; top: 0; background: #f0f0f0; z-i
 #tbl-dashboard th:nth-child(5),  /* ⏷ Mã WMS */
 #tbl-dashboard td:nth-child(5) { width: 8%; }
 
-#tbl-dashboard th:nth-child(6),  /* ⏷ Họ và Tên */
-#tbl-dashboard td:nth-child(6) { width: 18%; }
+#tbl-dashboard th:nth-child(6),  /* ⏷ Họ và Tên (+ Email) */
+#tbl-dashboard td:nth-child(6) { width: 20%; }
 
 #tbl-dashboard th:nth-child(7),  /* ⏷ Giới tính */
-#tbl-dashboard td:nth-child(7) { width: 8%; }
+#tbl-dashboard td:nth-child(7) { width: 7%; }
 
-#tbl-dashboard th:nth-child(8),  /* ⏷ Năm sinh */
+#tbl-dashboard th:nth-child(8),  /* ⏷ In */
 #tbl-dashboard td:nth-child(8) { width: 6%; }
 
-#tbl-dashboard th:nth-child(9),  /* ⏷ Shift In */
-#tbl-dashboard td:nth-child(9) { width: 6%; }
+#tbl-dashboard th:nth-child(9), /* ⏷ Nghỉ Trưa */
+#tbl-dashboard td:nth-child(9) { width: 8%; }
 
-#tbl-dashboard th:nth-child(10), /* ⏷ Nghỉ Trưa */
-#tbl-dashboard td:nth-child(10) { width: 8%; }
+#tbl-dashboard th:nth-child(10), /* ⏷ Vào Ca */
+#tbl-dashboard td:nth-child(10) { width: 7%; }
 
-#tbl-dashboard th:nth-child(11), /* ⏷ Vào Ca Trưa */
+#tbl-dashboard th:nth-child(11), /* ⏷ Nghỉ OT */
 #tbl-dashboard td:nth-child(11) { width: 8%; }
 
-#tbl-dashboard th:nth-child(12), /* ⏷ Nghỉ OT */
-#tbl-dashboard td:nth-child(12) { width: 8%; }
+#tbl-dashboard th:nth-child(12), /* ⏷ Vào Ca */
+#tbl-dashboard td:nth-child(12) { width: 7%; }
 
-#tbl-dashboard th:nth-child(13), /* ⏷ Vào Ca OT */
-#tbl-dashboard td:nth-child(13) { width: 8%; }
-
-#tbl-dashboard th:nth-child(14), /* ⏷ Shift Out */
-#tbl-dashboard td:nth-child(14) { width: 6%; }
+#tbl-dashboard th:nth-child(13), /* ⏷ Out */
+#tbl-dashboard td:nth-child(13) { width: 6%; }
 
 /* utility column classes cho các cột đặc biệt */
 .tbl-col-fullname{

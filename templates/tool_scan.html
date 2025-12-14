@@ -189,7 +189,6 @@
               <th class="sticky"><button class="filter-btn" data-col="wms_user_id" title="Lọc">⏷</button>Mã WMS</th>
               <th class="sticky tbl-col-fullname"><button class="filter-btn" data-col="fullname" title="Lọc">⏷</button>Họ và Tên</th>
               <th class="sticky tbl-col-gender"><button class="filter-btn" data-col="gender" title="Lọc">⏷</button>Giới tính</th>
-              <th class="sticky"><button class="filter-btn" data-col="birth_year" title="Lọc">⏷</button>SN</th>
               <th class="sticky"><button class="filter-btn" data-col="shift_in" title="Lọc">⏷</button>In</th>
               <th class="sticky"><button class="filter-btn" data-col="break_60" title="Lọc">⏷</button>Nghỉ Trưa</th>
               <th class="sticky"><button class="filter-btn" data-col="break_60_in" title="Lọc">⏷</button>Vào Ca</th>
@@ -1181,6 +1180,7 @@
       const info = {
         full_name:  staffData.fullname || "",
         contractor: staffData.vendor_name || "",
+        email:      staffData.email || "",
         gender:     staffData.gender || "",
         birth_year: staffData.birth_year || "",
         staff_id:   vendorCodeUpper, // Dùng vendor code đã cắt
@@ -1282,6 +1282,7 @@
     const info = {
       full_name:  j.full_name  ?? base.full_name  ?? "",
       contractor: j.contractor ?? base.contractor ?? "",
+      email:      j.email      ?? base.email      ?? "",
       gender:     j.gender     ?? base.gender     ?? "",
       birth_year: j.birth_year ?? base.birth_year ?? "",
       staff_id:   j.staff_id   ?? base.staff_id   ?? "",
@@ -1342,6 +1343,7 @@
             info: {
               full_name:  foundRecord.fullname || "",
               contractor: foundRecord.vendor_name || "",
+              email:      foundRecord.email || "",
               gender:     foundRecord.gender || "",
               birth_year: foundRecord.birth_year || "",
               staff_id:   foundVendorCode
@@ -1356,6 +1358,7 @@
             info: {
               full_name:  "",
               contractor: "",
+              email:      "",
               gender:     "",
               birth_year: "",
               staff_id:   ""
@@ -1371,6 +1374,7 @@
           info: {
             full_name:  "",
             contractor: "",
+            email:      "",
             gender:     "",
             birth_year: "",
             staff_id:   ""
@@ -1494,7 +1498,7 @@
     el("in-total").textContent = `Total Scan In: ${stats.total_in || 0}`;
 
     // Helper: map vendor name to canonical columns
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "SKT", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
@@ -1502,6 +1506,7 @@
       // Handle bOther GRG and GRGR
       if (s.includes("GRGR") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
+      if (s.includes("SKT"))   return "SKT";
       // All other vendors go to "Other" category
       return "Other";
     };
@@ -1509,11 +1514,11 @@
     // Build per-shift rows
     const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
     const rows = [];
-    let grand = { Agari:0, MBB:0, GRG:0, HTVN:0, Other:0 };
+    let grand = { Agari:0, MBB:0, GRG:0, HTVN:0, SKT:0, Other:0 };
 
     for (const sh of shifts) {
       const group = raw[sh] || {};
-      const counts = { Agari:0, MBB:0, GRG:0, HTVN:0, Other:0 };
+      const counts = { Agari:0, MBB:0, GRG:0, HTVN:0, SKT:0, Other:0 };
       for (const [vn, sg] of Object.entries(group)) {
         const canon = toCanon(vn);
         counts[canon] += Object.keys(sg || {}).length;
@@ -1522,9 +1527,10 @@
       grand.MBB   += counts.MBB;
       grand.GRG   += counts.GRG;
       grand.HTVN  += counts.HTVN;
+      grand.SKT   += counts.SKT;
       grand.Other += counts.Other;
-      const total = counts.Agari + counts.MBB + counts.GRG + counts.HTVN + counts.Other;
-      rows.push([sh, counts.Agari, counts.MBB, counts.GRG, counts.HTVN, counts.Other, total]);
+      const total = counts.Agari + counts.MBB + counts.GRG + counts.HTVN + counts.SKT + counts.Other;
+      rows.push([sh, counts.Agari, counts.MBB, counts.GRG, counts.HTVN, counts.SKT, counts.Other, total]);
     }
 
     // Render grid table into #in-shifts
@@ -1538,9 +1544,9 @@
     if(i===r.length-1) return `<td style=\"text-align:center;color:#28a745;font-weight:bold\">${fmt0(c)}</td>`;
     return `<td style=\"text-align:center\">${fmt0(c)}</td>`;
   }).join("")}</tr>`).join("")}</tbody>`;
-  const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN + grand.Other;
+  const gTotal = grand.Agari + grand.MBB + grand.GRG + grand.HTVN + grand.SKT + grand.Other;
   // Grand Total row có nền đỏ, chữ trắng
-  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmt0(grand.Agari)}</th><th style=\"text-align:center\">${fmt0(grand.MBB)}</th><th style=\"text-align:center\">${fmt0(grand.GRG)}</th><th style=\"text-align:center\">${fmt0(grand.HTVN)}</th><th style=\"text-align:center\">${fmt0(grand.Other)}</th><th style=\"text-align:center;font-weight:bold\">${fmt0(gTotal)}</th></tr></tfoot>`;
+  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmt0(grand.Agari)}</th><th style=\"text-align:center\">${fmt0(grand.MBB)}</th><th style=\"text-align:center\">${fmt0(grand.GRG)}</th><th style=\"text-align:center\">${fmt0(grand.HTVN)}</th><th style=\"text-align:center\">${fmt0(grand.SKT)}</th><th style=\"text-align:center\">${fmt0(grand.Other)}</th><th style=\"text-align:center;font-weight:bold\">${fmt0(gTotal)}</th></tr></tfoot>`;
     const tableHtml = `<table class="table">${thead}${tbody}${tfoot}</table>`;
     el("in-shifts").innerHTML = tableHtml;
 
@@ -1553,25 +1559,26 @@
     const raw = stats.raw || {};
 
     // Canonical vendor mapping to align with In grid
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "SKT", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
       if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
+      if (s.includes("SKT"))   return "SKT";
       // All other vendors go to "Other" category
       return "Other";
     };
 
     const shifts = Object.keys(raw).sort((a,b)=> String(a).localeCompare(String(b), undefined, {numeric:true}));
     const rows = [];
-    let grand = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, Other:{in:0,out:0} };
+    let grand = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, SKT:{in:0,out:0}, Other:{in:0,out:0} };
     let totIn=0, totOut=0;
 
     for(const sh of shifts){
       const group = raw[sh] || {};
-      const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, Other:{in:0,out:0} };
+      const counts = { Agari:{in:0,out:0}, MBB:{in:0,out:0}, GRG:{in:0,out:0}, HTVN:{in:0,out:0}, SKT:{in:0,out:0}, Other:{in:0,out:0} };
       for(const [vn, sg] of Object.entries(group)){
         const canon = toCanon(vn);
         const staff = Object.values(sg || {});
@@ -1584,14 +1591,15 @@
       grand.MBB.in   += counts.MBB.in;   grand.MBB.out   += counts.MBB.out;
       grand.GRG.in   += counts.GRG.in;   grand.GRG.out   += counts.GRG.out;
       grand.HTVN.in  += counts.HTVN.in;  grand.HTVN.out  += counts.HTVN.out;
+      grand.SKT.in   += counts.SKT.in;   grand.SKT.out   += counts.SKT.out;
       grand.Other.in += counts.Other.in; grand.Other.out += counts.Other.out;
 
       const rowVendorCells = canonVendors.map(v => {
         const c = counts[v] || { in: 0, out: 0 };
         return `${c.out}/${c.in}`;
       });
-      const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in + counts.Other.in;
-      const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out + counts.Other.out;
+      const inSum  = counts.Agari.in + counts.MBB.in + counts.GRG.in + counts.HTVN.in + counts.SKT.in + counts.Other.in;
+      const outSum = counts.Agari.out + counts.MBB.out + counts.GRG.out + counts.HTVN.out + counts.SKT.out + counts.Other.out;
       totIn += inSum; totOut += outSum;
       rows.push([sh, ...rowVendorCells, `${outSum}/${inSum}`]);
     }
@@ -1608,10 +1616,10 @@
       if(i===r.length-1) return `<td style=\"text-align:center;color:#28a745;font-weight:bold\">${fmtPair(parts[0], parts[1])}</td>`;
       return `<td style=\"text-align:center\">${fmtPair(parts[0], parts[1])}</td>`;
     }).join("")}</tr>`).join("")}</tbody>`;
-    const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in + grand.Other.in;
-    const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out + grand.Other.out;
+    const gIn  = grand.Agari.in + grand.MBB.in + grand.GRG.in + grand.HTVN.in + grand.SKT.in + grand.Other.in;
+    const gOut = grand.Agari.out + grand.MBB.out + grand.GRG.out + grand.HTVN.out + grand.SKT.out + grand.Other.out;
   // Grand Total row có nền đỏ, chữ trắng
-  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmtPair(grand.Agari?.out||0,grand.Agari?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.MBB?.out||0,grand.MBB?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.GRG?.out||0,grand.GRG?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.HTVN?.out||0,grand.HTVN?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.Other?.out||0,grand.Other?.in||0)}</th><th style=\"text-align:center;font-weight:bold\">${fmtPair(gOut,gIn)}</th></tr></tfoot>`;
+  const tfoot = `<tfoot><tr style=\"color:blue\"><th>Grand Total</th><th style=\"text-align:center\">${fmtPair(grand.Agari?.out||0,grand.Agari?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.MBB?.out||0,grand.MBB?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.GRG?.out||0,grand.GRG?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.HTVN?.out||0,grand.HTVN?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.SKT?.out||0,grand.SKT?.in||0)}</th><th style=\"text-align:center\">${fmtPair(grand.Other?.out||0,grand.Other?.in||0)}</th><th style=\"text-align:center;font-weight:bold\">${fmtPair(gOut,gIn)}</th></tr></tfoot>`;
     const tableHtml = `<table class=\"table\">${thead}${tbody}${tfoot}</table>`;
     el("out-shifts").innerHTML = tableHtml;
     el("out-total").textContent = `Total Scan Out: ${totOut} / ${totIn}`;
@@ -1638,6 +1646,7 @@
       wms_user_id:     safe(r.wms_user_id),
       operator:        safe(r.operator).toUpperCase(),
       fullname:        safe(r.fullname || r.full_name).toUpperCase(),
+      email:           safe(r.email),
       gender:          normalizeGender(r.gender) || safe(r.gender).toUpperCase().normalize("NFC"), // Normalize gender
       shift_in:        safe(r.shift_in || r.shift),
       shift_type:      safe(r.shift_type),
@@ -1693,7 +1702,15 @@
 
       for(const [k,val] of Object.entries(fs)){
         if(!val) continue;
-        if(!q(row[k]).includes(q(val))) return false;
+
+        // Special handling for fullname: also search in email
+        if (k === 'fullname') {
+          const fullnameMatch = q(row.fullname).includes(q(val));
+          const emailMatch = q(row.email).includes(q(val));
+          if (!fullnameMatch && !emailMatch) return false;
+        } else {
+          if(!q(row[k]).includes(q(val))) return false;
+        }
       }
       return true;
     });
@@ -1724,9 +1741,8 @@
         { cls: editableClass, value: r.vendor_code, field: 'vendor_code' },
         { cls: '', value: r.wfm_code, field: null }, // WFM not editable
         { cls: editableClass, value: r.wms_user_id, field: 'wms_user_id' },
-        { cls: `tbl-col-fullname ${editableClass}`, value: r.fullname, field: 'fullname' },
+        { cls: `tbl-col-fullname ${editableClass}`, value: `${r.fullname}<br><small style="color:#666;font-size:11px">${r.email || ''}</small>`, field: 'fullname' },
         { cls: `tbl-col-gender ${editableClass}`, value: r.gender, field: 'gender' },
-        { cls: editableClass, value: r.birth_year, field: 'birth_year' },
         { cls: editableClass, value: r.shift_in, field: 'shift_in' },
         { cls: editableClass, value: r.break_60, field: 'break_60' },
         { cls: editableClass, value: r.break_60_in, field: 'break_60_in' },
@@ -1771,13 +1787,14 @@
     el('task30-total')?.classList.add('is-hidden');
 
     // Canonical vendor mapping
-    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "Other"];
+    const canonVendors = ["Agari", "MBB", "GRG", "HTVN", "SKT", "Other"];
     const toCanon = (name) => {
       const s = String(name || "").toUpperCase();
       if (s.includes("AGARI")) return "Agari";
       if (s.includes("MBB"))   return "MBB";
       if (s.includes("GRG") || s === "GRG" || s.includes(" GRG")) return "GRG";
       if (s.includes("HTVN"))  return "HTVN";
+      if (s.includes("SKT"))   return "SKT";
       if (s === "Other")       return "Other";
       return null;
     };
@@ -1788,10 +1805,10 @@
     function buildTable(kind){
       // kind: '60' or '30'
       const rows = [];
-      const grand = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
+      const grand = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, SKT:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
       for (const sh of shifts){
         const group = raw[sh] || {};
-        const counts = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
+        const counts = { Agari:{a:0,b:0,in:0}, MBB:{a:0,b:0,in:0}, GRG:{a:0,b:0,in:0}, HTVN:{a:0,b:0,in:0}, SKT:{a:0,b:0,in:0}, Other:{a:0,b:0,in:0} };
         for (const [vn, sg] of Object.entries(group)){
           const canon = toCanon(vn); if(!canon) continue;
           const staff = Object.values(sg || {});
@@ -1962,6 +1979,7 @@
         wfm_code: staff_no.toUpperCase(),
         fullname: fullnameValue,
         vendor_name: vendorName,
+        email: String(info.email || "").trim(),
         shift_in: shiftTime,
         shift_type: shiftType,
         date: scanDate,
@@ -2477,7 +2495,17 @@
     const modal = el("filterModal");
 
     // Get unique values for this column, including blank values
-    const allValues = DASH.rows.map(row => String(row[column] || ""));
+    let allValues;
+
+    // Special handling for fullname: combine fullname + email values
+    if (column === 'fullname') {
+      const fullnameValues = DASH.rows.map(row => String(row.fullname || ""));
+      const emailValues = DASH.rows.map(row => String(row.email || ""));
+      allValues = [...fullnameValues, ...emailValues];
+    } else {
+      allValues = DASH.rows.map(row => String(row[column] || ""));
+    }
+
     const nonEmptyValues = [...new Set(allValues.filter(v => v.trim()))].sort();
     const hasEmptyValues = allValues.some(v => !v.trim());
 
@@ -2909,23 +2937,47 @@
         if(!val) continue;
         if (Array.isArray(val)) {
           // New filter format - array of selected values
-          const cellValue = String(row[k] || "");
-          const isEmpty = !cellValue.trim();
 
-          // Check if the value matches any selected filter
-          const matches = val.some(filterValue => {
-            if (filterValue === "(Trống)") {
-              return isEmpty; // Match empty values
-            } else {
-              return cellValue === filterValue; // Exact match for non-empty values
-            }
-          });
+          // Special handling for fullname: check both fullname and email
+          if (k === 'fullname') {
+            const fullnameValue = String(row.fullname || "");
+            const emailValue = String(row.email || "");
+            const isEmpty = !fullnameValue.trim() && !emailValue.trim();
 
-          if (!matches) return false;
+            const matches = val.some(filterValue => {
+              if (filterValue === "(Trống)") {
+                return isEmpty;
+              } else {
+                return fullnameValue === filterValue || emailValue === filterValue;
+              }
+            });
+
+            if (!matches) return false;
+          } else {
+            // Normal column filtering
+            const cellValue = String(row[k] || "");
+            const isEmpty = !cellValue.trim();
+
+            const matches = val.some(filterValue => {
+              if (filterValue === "(Trống)") {
+                return isEmpty;
+              } else {
+                return cellValue === filterValue;
+              }
+            });
+
+            if (!matches) return false;
+          }
         } else {
-          // Old format fallback
+          // Old format fallback + Special handling for fullname: also search in email
           const q=v=>String(v||"").toLowerCase();
-          if(!q(row[k]).includes(q(val))) return false;
+          if (k === 'fullname') {
+            const fullnameMatch = q(row.fullname).includes(q(val));
+            const emailMatch = q(row.email).includes(q(val));
+            if (!fullnameMatch && !emailMatch) return false;
+          } else {
+            if(!q(row[k]).includes(q(val))) return false;
+          }
         }
       }
       return true;
@@ -2971,12 +3023,12 @@
     try{
       const headers = [
         "Nhà Thầu","Mã Vendor","Mã WFM","Mã WMS","Operator",
-        "Họ và Tên","Giới tính","Năm sinh","Shift In","Time in",
+        "Họ và Tên","Email","Giới tính","Năm sinh","Shift In","Time in",
         "Nghỉ Trưa","Vào Ca Trưa","Nghỉ OT","Vào Ca OT","Shift Out","Time Out"
       ];
       const rows = (DASH.filtered?.length ? DASH.filtered : DASH.rows).map(r => ([
         r.vendor_name, r.vendor_code, r.wfm_code, r.wms_user_id, r.operator,
-        r.fullname, r.gender, r.birth_year,
+        r.fullname, r.email, r.gender, r.birth_year,
         r.shift_in || r.shift || "", r.gsheet_time_in,
         r.break_60,  r.break_60_in, r.break_30, r.break_30_in, r.shift_out || "", r.gsheet_time_out
       ]));
