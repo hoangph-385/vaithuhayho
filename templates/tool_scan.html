@@ -174,6 +174,7 @@
       <button id="btnEditMode" class="btn-action" title="Bật/tắt chế độ chỉnh sửa">Edit Mode</button>
       <button id="btnResetFilters" class="btn-action" title="Reset tất cả bộ lọc">Reset Filters</button>
       <button id="btnExportXlsx" class="btn-action" title="Tải Excel">Export Excel</button>
+      <button id="btnUpdateEmail" class="btn-action" title="Update dữ liệu từ Database">Update Data</button>
     </div>
   </div>
 
@@ -1426,9 +1427,11 @@
   function flattenRecords(records){
     const flat=[];
     for(const [shift, group] of Object.entries(records||{})){
-      for(const [vendor_name, staff_group] of Object.entries(group||{})){
+      for(const [vendor_node, staff_group] of Object.entries(group||{})){
         for(const [wfm, info] of Object.entries(staff_group||{})){
-          flat.push({...info, shift, vendor_name, wfm_code:wfm});
+          // Ưu tiên vendor_name trong record nếu có, nếu không dùng vendor_node từ cấu trúc Firebase
+          const vName = info.vendor_name || vendor_node;
+          flat.push({...info, shift, vendor_name: vName, wfm_code:wfm});
         }
       }
     }
@@ -3056,6 +3059,124 @@
     }
   });
 
+  el("btnUpdateEmail")?.addEventListener("click", async () => {
+    const wh = el("warehouse")?.value || "VNDB";
+    const day = el("dayPicker")?.value || todayKey();
+
+    if (!confirm(`Bạn có muốn update dữ liệu còn thiếu cho ngày ${day} từ BPO không?`)) return;
+
+    notice("Đang update dữ liệu từ BPO...", "info", 0);
+    try {
+      // 1. Fetch BPO data
+      const bpoUrl = "https://data-bpo-default-rtdb.asia-southeast1.firebasedatabase.app/VNDB.json";
+      const bpoResp = await fetch(bpoUrl);
+      if (!bpoResp.ok) throw new Error("Không thể lấy dữ liệu từ BPO");
+      const bpoData = await bpoResp.json();
+
+      // Tạo map để tìm kiếm theo wfm_code nhanh hơn
+      const bpoWfmMap = {};
+      Object.values(bpoData || {}).forEach(r => {
+        if (r.wfm_code) bpoWfmMap[String(r.wfm_code).trim()] = r;
+      });
+
+      // 2. Fetch Today data
+      const todayUrl = `https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app/${wh}/${day}.json`;
+      const todayResp = await fetch(todayUrl);
+      if (!todayResp.ok) throw new Error("Không thể lấy dữ liệu ngày hiện tại");
+      const todayData = await todayResp.json();
+
+      if (!todayData) {
+        notice("Không có dữ liệu ngày này để update.", "warn", 3000);
+        return;
+      }
+
+      let updateCount = 0;
+      const promises = [];
+      const fieldsToUpdate = ["birth_year", "email", "fullname", "gender", "vendor_code", "vendor_name"];
+
+      for (const [shift, shiftData] of Object.entries(todayData)) {
+        for (const [vendor, vendorData] of Object.entries(shiftData)) {
+          for (const [wfm, record] of Object.entries(vendorData)) {
+            // Ưu tiên tìm theo vendor_code, nếu không có thì tìm theo wfm_code
+            let bpoRecord = null;
+            const vCode = String(record.vendor_code || "").trim();
+            const wCode = String(record.wfm_code || "").trim();
+
+            if (vCode && vCode !== "-") {
+              bpoRecord = bpoData[vCode];
+            }
+
+            if (!bpoRecord && wCode && wCode !== "-") {
+              bpoRecord = bpoWfmMap[wCode];
+            }
+
+            if (!bpoRecord) continue;
+
+            const patch = {};
+            fieldsToUpdate.forEach(field => {
+              const currentValue = String(record[field] || "").trim();
+              const bpoValue = String(bpoRecord[field] || "").trim();
+
+              // Update nếu data hiện tại trống/mặc định/Other và BPO có data hợp lệ
+              let isMissing = !currentValue || currentValue === "-";
+              if (field === "vendor_name" && currentValue.toUpperCase() === "OTHER") isMissing = true;
+
+              if (isMissing && bpoValue && bpoValue !== "-") {
+                patch[field] = bpoValue;
+              }
+            });
+
+            if (Object.keys(patch).length > 0) {
+              const oldPath = `https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app/${wh}/${day}/${encodeURIComponent(shift)}/${encodeURIComponent(vendor)}/${encodeURIComponent(wfm)}.json`;
+
+              // Nếu vendor_name thay đổi, ta cần di chuyển node để counter chạy đúng
+              if (patch.vendor_name && patch.vendor_name !== vendor) {
+                const newRecord = { ...record, ...patch };
+                const newVendor = patch.vendor_name;
+                const newPath = `https://data-scan-tool-default-rtdb.asia-southeast1.firebasedatabase.app/${wh}/${day}/${encodeURIComponent(shift)}/${encodeURIComponent(newVendor)}/${encodeURIComponent(wfm)}.json`;
+
+                promises.push(
+                  fetch(newPath, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(newRecord)
+                  }).then(async r => {
+                    if (r.ok) {
+                      await fetch(oldPath, { method: "DELETE" });
+                      updateCount++;
+                    }
+                  })
+                );
+              } else {
+                promises.push(
+                  fetch(oldPath, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(patch)
+                  }).then(r => {
+                    if (r.ok) updateCount++;
+                  })
+                );
+              }
+            }
+          }
+        }
+      }
+
+      if (promises.length === 0) {
+        notice("Không tìm thấy dữ liệu nào cần update hoặc không có dữ liệu khớp từ BPO.", "info", 5000);
+      } else {
+        await Promise.all(promises);
+        notice(`Đã update thành công ${updateCount} nhân sự.`, "success", 5000);
+        playSysOk();
+      }
+    } catch (e) {
+      console.error(e);
+      notice(`Lỗi update dữ liệu: ${e.message}`, "error", 5000);
+      playSysErr();
+    }
+  });
+
   // Expose debug function để test Firebase
   window.testFirebaseWFM = async function(wfmCode) {
     try {
@@ -3115,7 +3236,7 @@
     const actionButtons = [
       'btnScanIn', 'btnScanOut', 'btnScanTask',
       'btnEditMode', 'btnExportXlsx', 'btnResetFilters',
-      'btnRefreshAnalyze'
+      'btnUpdateEmail', 'btnRefreshAnalyze'
     ];
 
     actionButtons.forEach(id => {
